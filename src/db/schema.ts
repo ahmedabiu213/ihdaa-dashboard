@@ -41,17 +41,26 @@ export const products = pgTable("products", {
   updatedAt: updatedAt(),
 });
 
-/** Donations = Salla orders. Only `counts_as_revenue` orders are summed. */
+/**
+ * Donations = Salla orders. Only `counts_as_revenue` orders are summed.
+ *
+ * An order can arrive from several sources (see `source`). Salla's own data
+ * (Make.com, a Partners-app webhook, or an export upload) is `verified` and
+ * always wins over what the storefront script reported.
+ */
 export const orders = pgTable(
   "orders",
   {
-    id: bigint("id", { mode: "number" }).primaryKey(), // Salla internal order id
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    sallaId: bigint("salla_id", { mode: "number" }), // Salla internal order id, when known
     referenceId: text("reference_id"), // the order number donors see
     status: text("status"), // Salla status slug
     countsAsRevenue: boolean("counts_as_revenue").notNull().default(false),
     totalSar: numeric("total_sar", { precision: 12, scale: 2 }).notNull().default("0"),
     currency: text("currency").notNull().default("SAR"),
     paymentMethod: text("payment_method"),
+    source: text("source").notNull(), // browser | make | salla_webhook | import
+    verified: boolean("verified").notNull().default(false),
     orderedAt: timestamp("ordered_at", { withTimezone: true }).notNull(),
     orderedDate: date("ordered_date").notNull(), // Riyadh day of orderedAt
     raw: jsonb("raw"),
@@ -60,7 +69,8 @@ export const orders = pgTable(
   },
   (t) => [
     index("orders_ordered_date_idx").on(t.orderedDate),
-    index("orders_reference_idx").on(t.referenceId),
+    uniqueIndex("orders_salla_id_idx").on(t.sallaId),
+    uniqueIndex("orders_reference_idx").on(t.referenceId),
   ],
 );
 

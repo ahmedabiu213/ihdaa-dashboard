@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Storefront tracker: hand-written ES5 for old browsers (keeps `catch (e)`).
+    "public/t.js",
   ]),
 ]);
 

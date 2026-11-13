@@ -14,8 +14,9 @@ async function totals(range: Range, channel: Filters["channel"]) {
   const db = getDb();
   const chOrders = channel ? sql`and ${ORDER_CHANNEL} = ${channel}` : sql``;
   const chSpend = channel ? sql`and platform = ${channel}` : sql``;
-  const [rev] = await db.execute<{ revenue: string; donations: string }>(sql`
-    select coalesce(sum(o.total_sar), 0) as revenue, count(*) as donations
+  const [rev] = await db.execute<{ revenue: string; donations: string; verified_revenue: string }>(sql`
+    select coalesce(sum(o.total_sar), 0) as revenue, count(*) as donations,
+           coalesce(sum(o.total_sar) filter (where o.verified), 0) as verified_revenue
     from orders o left join attributions a on a.order_id = o.id
     where o.counts_as_revenue and o.ordered_date between ${range.from} and ${range.to} ${chOrders}`);
   const [sp] = await db.execute<{ spend: string; platform_value: string }>(sql`
@@ -26,6 +27,7 @@ async function totals(range: Range, channel: Filters["channel"]) {
   const spend = toNumber(sp?.spend);
   return {
     revenue,
+    verifiedRevenue: toNumber(rev?.verified_revenue),
     donations,
     spend,
     platformValue: toNumber(sp?.platform_value),

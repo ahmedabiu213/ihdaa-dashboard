@@ -1,5 +1,5 @@
 {
-  "id": "268f8a4e-0755-48a0-9034-65297c3cee83",
+  "id": "15c39351-b590-4f3b-806b-04b09b6382d4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -465,9 +465,15 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "bigint",
+          "type": "bigserial",
           "primaryKey": true,
           "notNull": true
+        },
+        "salla_id": {
+          "name": "salla_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
         },
         "reference_id": {
           "name": "reference_id",
@@ -507,6 +513,19 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verified": {
+          "name": "verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "ordered_at": {
           "name": "ordered_at",
@@ -557,6 +576,21 @@
           "method": "btree",
           "with": {}
         },
+        "orders_salla_id_idx": {
+          "name": "orders_salla_id_idx",
+          "columns": [
+            {
+              "expression": "salla_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "orders_reference_idx": {
           "name": "orders_reference_idx",
           "columns": [
@@ -567,7 +601,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}

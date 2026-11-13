@@ -61,13 +61,16 @@ CREATE TABLE "order_items" (
 );
 --> statement-breakpoint
 CREATE TABLE "orders" (
-	"id" bigint PRIMARY KEY NOT NULL,
+	"id" bigserial PRIMARY KEY NOT NULL,
+	"salla_id" bigint,
 	"reference_id" text,
 	"status" text,
 	"counts_as_revenue" boolean DEFAULT false NOT NULL,
 	"total_sar" numeric(12, 2) DEFAULT '0' NOT NULL,
 	"currency" text DEFAULT 'SAR' NOT NULL,
 	"payment_method" text,
+	"source" text NOT NULL,
+	"verified" boolean DEFAULT false NOT NULL,
 	"ordered_at" timestamp with time zone NOT NULL,
 	"ordered_date" date NOT NULL,
 	"raw" jsonb,
@@ -162,7 +165,8 @@ CREATE UNIQUE INDEX "attributions_order_id_idx" ON "attributions" USING btree ("
 CREATE INDEX "order_items_order_idx" ON "order_items" USING btree ("order_id");--> statement-breakpoint
 CREATE INDEX "order_items_product_idx" ON "order_items" USING btree ("product_id");--> statement-breakpoint
 CREATE INDEX "orders_ordered_date_idx" ON "orders" USING btree ("ordered_date");--> statement-breakpoint
-CREATE INDEX "orders_reference_idx" ON "orders" USING btree ("reference_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "orders_salla_id_idx" ON "orders" USING btree ("salla_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "orders_reference_idx" ON "orders" USING btree ("reference_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "spend_daily_grain_idx" ON "spend_daily" USING btree ("platform","date","account_external_id","campaign_id","adset_id","ad_id");--> statement-breakpoint
 CREATE INDEX "spend_daily_date_idx" ON "spend_daily" USING btree ("date");--> statement-breakpoint
 CREATE INDEX "sync_runs_platform_idx" ON "sync_runs" USING btree ("platform","started_at");--> statement-breakpoint

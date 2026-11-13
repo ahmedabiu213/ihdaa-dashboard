@@ -1,3 +1,4 @@
+import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { SectionCard } from "@/components/section-card";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { InfoTip } from "@/components/info-tip";
@@ -32,6 +33,22 @@ function Metric({
   );
 }
 
+/** How much of the revenue Salla itself confirmed (vs only the storefront script). */
+function VerifiedShare({ revenue, verified }: { revenue: number; verified: number }) {
+  if (revenue <= 0) return null;
+  const share = verified / revenue;
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+      {share >= 0.995 ? <ShieldCheck className="size-3.5 text-success" /> : <ShieldAlert className="size-3.5" />}
+      {formatPercent(share)} موثّق من سلة
+      <InfoTip>
+        التبرعات الموثّقة وصلت من سلة نفسها (Make.com أو تصدير الطلبات). البقية أبلغ عنها سكربت المتجر،
+        وتُستبدل تلقائيًا ببيانات سلة عند وصولها.
+      </InfoTip>
+    </span>
+  );
+}
+
 export function OverviewCard({
   range, totals, previous, daily,
 }: { range: DateRange; totals: Totals; previous: Totals; daily: DailyPoint[] }) {
@@ -45,7 +62,12 @@ export function OverviewCard({
           label="إجمالي التبرعات"
           tip="مجموع الطلبات المدفوعة في سلة خلال الفترة. هذا هو الرقم الحقيقي من المتجر وليس من المنصات."
           value={formatSar(totals.revenue)}
-          delta={<Delta current={totals.revenue} previous={previous.revenue} />}
+          delta={
+            <div className="grid gap-1">
+              <Delta current={totals.revenue} previous={previous.revenue} />
+              <VerifiedShare revenue={totals.revenue} verified={totals.verifiedRevenue} />
+            </div>
+          }
         >
           <TrendChart data={daily} series={[{ key: "revenue", label: "التبرعات", color: REVENUE_COLOR }]} />
         </Metric>

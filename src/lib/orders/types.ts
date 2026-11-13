@@ -1,0 +1,39 @@
+export type OrderSource = "browser" | "make" | "salla_webhook" | "import";
+
+/** Salla's own data is trusted; the storefront script is not. */
+export const VERIFIED_SOURCES: readonly OrderSource[] = ["make", "salla_webhook", "import"];
+
+export type NormalizedItem = {
+  productId: number | null;
+  name: string;
+  sku: string | null;
+  quantity: number;
+  totalSar: number;
+};
+
+export type NormalizedOrder = {
+  sallaId: number | null;
+  referenceId: string | null;
+  status: string | null;
+  totalSar: number;
+  currency: string;
+  paymentMethod: string | null;
+  orderedAt: Date;
+  items: NormalizedItem[];
+  source: OrderSource;
+  raw: unknown;
+};
+
+/**
+ * Salla status slugs that are NOT money in the bank. Everything else
+ * (under_review, in_progress, completed, delivered, …) counts.
+ * Confirm against real orders once the first verified ones arrive.
+ */
+export const NON_REVENUE_STATUSES = new Set([
+  "payment_pending", "pending", "awaiting_payment",
+  "canceled", "cancelled", "restoring", "restored", "refunded", "failed",
+]);
+
+export function countsAsRevenue(status: string | null) {
+  return status == null || !NON_REVENUE_STATUSES.has(status.toLowerCase());
+}

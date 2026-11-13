@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ihdaa marketing dashboard
 
-## Getting Started
+Arabic, right-to-left dashboard that shows donations (from Salla), ad spend
+(from each platform), and return on spend per channel, campaign and project.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Next.js 16 (App Router, Cache Components) · TypeScript · Tailwind 4 + shadcn/ui (RTL) ·
+Recharts · Drizzle ORM · Supabase (Postgres + Auth) · Vercel.
+
+## How the numbers work
+
+- **Money only comes from Salla** (order webhook). The browser never reports amounts.
+- **The storefront script only reports attribution** (UTMs, click IDs, landing page).
+  A purchase report is linked to an order Salla confirmed; a forged one adds nothing.
+- **Spend** comes from platform APIs (Snapchat first), the Google Ads Script, or CSV/manual entry.
+- Days are **Asia/Riyadh**; amounts are **SAR**.
+
+## Setup
+
+1. Create a Supabase project. Copy `.env.example` to `.env.local` and fill in:
+   - `DATABASE_URL`: Project Settings → Database → Connection string → **Transaction pooler** (port 6543).
+   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: Project Settings → API.
+2. Create the tables: `pnpm db:migrate`
+3. In Supabase → Authentication: **turn off public sign-ups** and invite each team member.
+4. `pnpm dev` and open http://localhost:3000
+
+Without Supabase variables, local development skips login so the UI can be previewed.
+In production the app refuses to serve pages until auth is configured.
+
+## Layout
+
 ```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+src/app/(dashboard)/   pages (overview, channels, campaigns, projects, donations, utm, spend, settings)
+src/app/login/         login page and actions
+src/proxy.ts           login guard (Next 16 "proxy", formerly middleware)
+src/db/schema.ts       database tables
+src/lib/queries/       SQL for each page
+src/lib/channels.ts    channel names, colors, and source → channel rules
+drizzle/               SQL migrations (includes enabling RLS on every table)
+```

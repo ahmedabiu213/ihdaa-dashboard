@@ -1,11 +1,10 @@
 import "server-only";
 import { TZDate } from "@date-fns/tz";
 import { addDays, format, parseISO } from "date-fns";
-import { and, between, eq, sql } from "drizzle-orm";
-import { getDb, schema } from "@/db";
 import { riyadhToday } from "@/lib/dates";
 import { logRun } from "@/lib/integrations/store";
 import { toSar } from "@/lib/orders/normalize-salla";
+import { replaceApiSpend, upsertAdAccount, upsertEntities, type EntityRow } from "@/lib/spend/write";
 import { snapchatConfig, snapGet, snapList } from "./client";
 
 /**
@@ -54,21 +53,12 @@ async function syncEntities(accountId: string) {
     snapList<SnapEntity>(`/adaccounts/${accountId}/adsquads`, "adsquads", "adsquad"),
     snapList<SnapEntity>(`/adaccounts/${accountId}/ads`, "ads", "ad"),
   ]);
-  const rows = [
-    ...campaigns.map((c) => ({ level: "campaign", externalId: c.id, parentExternalId: null, name: c.name, status: c.status })),
-    ...squads.map((s) => ({ level: "adset", externalId: s.id, parentExternalId: s.campaign_id ?? null, name: s.name, status: s.status })),
-    ...ads.map((a) => ({ level: "ad", externalId: a.id, parentExternalId: a.ad_squad_id ?? null, name: a.name, status: a.status })),
-  ].map((r) => ({ ...r, platform: PLATFORM, accountExternalId: accountId, updatedAt: new Date() }));
-
-  if (rows.length > 0) {
-    await getDb().insert(schema.adEntities).values(rows).onConflictDoUpdate({
-      target: [schema.adEntities.platform, schema.adEntities.level, schema.adEntities.externalId],
-      set: {
-        name: sql`excluded.name`, status: sql`excluded.status`,
-        parentExternalId: sql`excluded.parent_external_id`, updatedAt: new Date(),
-      },
-    });
-  }
+  const rows: EntityRow[] = [
+    ...campaigns.map((c) => ({ level: "campaign" as const, externalId: c.id, parentExternalId: null, name: c.name, status: c.status })),
+    ...squads.map((q) => ({ level: "adset" as const, externalId: q.id, parentExternalId: q.campaign_id ?? null, name: q.name, status: q.status })),
+    ...ads.map((a) => ({ level: "ad" as const, externalId: a.id, parentExternalId: a.ad_squad_id ?? null, name: a.name, status: a.status })),
+  ];
+  await upsertEntities(PLATFORM, accountId, rows);
   // ad → { adset, campaign }
   const squadCampaign = new Map(squads.map((s) => [s.id, s.campaign_id ?? ""]));
   return new Map(ads.map((a) => [a.id, { adsetId: a.ad_squad_id ?? "", campaignId: squadCampaign.get(a.ad_squad_id ?? "") ?? "" }]));
@@ -107,13 +97,7 @@ export async function syncSnapchat(days = 3): Promise<SyncResult> {
     const account = adaccounts?.[0]?.adaccount;
     if (!account) throw new Error("Snapchat ad account not found or not accessible");
 
-    const db = getDb();
-    await db.insert(schema.adAccounts)
-      .values({ platform: PLATFORM, externalId: account.id, name: account.name, currency: account.currency, timezone: account.timezone })
-      .onConflictDoUpdate({
-        target: [schema.adAccounts.platform, schema.adAccounts.externalId],
-        set: { name: account.name, currency: account.currency, timezone: account.timezone },
-      });
+    await upsertAdAccount(PLATFORM, account);
 
     const adMap = await syncEntities(account.id);
 
@@ -141,13 +125,7 @@ export async function syncSnapchat(days = 3): Promise<SyncResult> {
       };
     });
 
-    await db.transaction(async (tx) => {
-      await tx.delete(schema.spendDaily).where(and(
-        eq(schema.spendDaily.platform, PLATFORM), eq(schema.spendDaily.source, "api"),
-        eq(schema.spendDaily.accountExternalId, account.id), between(schema.spendDaily.date, from, to),
-      ));
-      for (let i = 0; i < rows.length; i += 500) await tx.insert(schema.spendDaily).values(rows.slice(i, i + 500));
-    });
+    await replaceApiSpend(PLATFORM, account.id, from, to, rows);
     return { rows: rows.length, from, to };
   });
 }

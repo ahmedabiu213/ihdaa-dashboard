@@ -38,7 +38,7 @@ In production the app refuses to serve pages until auth is configured.
 Spend is pulled per ad per day (`/v1/adaccounts/{id}/stats?granularity=DAY&breakdown=ad`) and the
 last 3 days are re-pulled on every run, because Snapchat keeps finalizing recent numbers.
 
-**Schedule.** `vercel.json` runs `/api/cron/sync` once a day (the Vercel Hobby limit). For hourly
+**Schedule.** `vercel.json` runs `/api/cron/sync` (Snapchat and TikTok) once a day (the Vercel Hobby limit). For hourly
 updates, schedule it from Supabase (Database → Extensions: enable `pg_cron` and `pg_net`):
 
 ```sql
@@ -49,6 +49,19 @@ select cron.schedule('ihdaa-sync', '7 * * * *', $$
   );
 $$);
 ```
+
+## TikTok
+
+1. In the TikTok developer app, the advertiser redirect URL is
+   `https://ihdaa-dashboard.vercel.app/api/oauth/tiktok/callback`.
+2. In Vercel set `TIKTOK_APP_ID`, `TIKTOK_APP_SECRET` (and `TIKTOK_ADVERTISER_ID` if the
+   authorization covers several advertiser accounts).
+3. Dashboard → الربط والمزامنة → ربط تيك توك. The last 90 days are backfilled automatically.
+
+Spend comes from `GET /open_api/v1.3/report/integrated/get/` (BASIC, AUCTION_AD, `ad_id` ×
+`stat_time_day`), in week-sized windows. The advertiser token is long-lived; if it is revoked,
+reconnect. TikTok's purchase metrics are requested too; if TikTok rejects them for this account,
+the sync continues with spend, impressions and clicks only.
 
 ## UTM links
 

@@ -4,12 +4,13 @@ import { useActionState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { syncSnapchatNow, type ActionState } from "./actions";
+import { syncNow, type ActionState } from "./actions";
 
-export function SnapchatSyncForm() {
-  const [state, action, pending] = useActionState<ActionState, FormData>(syncSnapchatNow, {});
+export function SyncForm({ platform }: { platform: "snapchat" | "tiktok" }) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(syncNow, {});
   return (
     <form action={action} className="grid gap-2">
+      <input type="hidden" name="platform" value={platform} />
       <div className="flex flex-wrap items-center gap-2">
         <Select name="days" defaultValue="7">
           <SelectTrigger size="sm" className="w-36"><SelectValue /></SelectTrigger>

@@ -13,8 +13,9 @@ import { getDb, isDatabaseConfigured, schema } from "@/db";
 import { formatDateTime } from "@/lib/dates";
 import { getIntegration, recentRuns } from "@/lib/integrations/store";
 import { snapchatConfig } from "@/lib/snapchat/client";
-import { disconnectSnapchat } from "./actions";
-import { SnapchatSyncForm } from "./sync-form";
+import { tiktokConfig } from "@/lib/tiktok/client";
+import { disconnect } from "./actions";
+import { SyncForm } from "./sync-form";
 
 const appUrl = () => (process.env.NEXT_PUBLIC_APP_URL ?? "https://ihdaa-dashboard.vercel.app").replace(/\/$/, "");
 
@@ -24,6 +25,11 @@ const FLASH: Record<string, { tone: "ok" | "error"; text: string }> = {
   "error=snapchat-state": { tone: "error", text: "انتهت صلاحية طلب الربط. حاول مرة أخرى." },
   "error=snapchat-token": { tone: "error", text: "رفض سناب شات طلب الربط. تأكد من Client Secret ورابط إعادة التوجيه." },
   "error=snapchat-config": { tone: "error", text: "متغيرات سناب شات غير مكتملة في إعدادات Vercel." },
+  "connected=tiktok": { tone: "ok", text: "تم ربط تيك توك. تجري الآن مزامنة آخر 90 يوم في الخلفية." },
+  "error=tiktok-denied": { tone: "error", text: "تم إلغاء الربط من صفحة تيك توك." },
+  "error=tiktok-state": { tone: "error", text: "انتهت صلاحية طلب الربط. حاول مرة أخرى." },
+  "error=tiktok-token": { tone: "error", text: "رفض تيك توك طلب الربط. تأكد من App ID و Secret ورابط إعادة التوجيه." },
+  "error=tiktok-config": { tone: "error", text: "متغيرات تيك توك غير مكتملة في إعدادات Vercel." },
 };
 
 function Status({ status }: { status: "connected" | "error" | "pending" | "off" }) {
@@ -50,53 +56,80 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-async function SnapchatCard() {
-  const cfg = snapchatConfig();
+type PlatformDef = {
+  key: "snapchat" | "tiktok";
+  title: string;
+  description: string;
+  configured: boolean;
+  accountHint: string | null;
+  envNames: string[];
+  connectedBy: "refreshTokenEnc" | "accessTokenEnc";
+};
+
+function platformDefs(): PlatformDef[] {
+  const snap = snapchatConfig();
+  const tt = tiktokConfig();
+  return [
+    {
+      key: "snapchat", title: "سناب شات", description: "الإنفاق والظهور والنقرات لكل إعلان يوميًا",
+      configured: !!snap, accountHint: snap?.adAccountId ?? null, connectedBy: "refreshTokenEnc",
+      envNames: ["SNAPCHAT_CLIENT_ID", "SNAPCHAT_CLIENT_SECRET", "SNAPCHAT_AD_ACCOUNT_ID", "TOKEN_ENCRYPTION_KEY"],
+    },
+    {
+      key: "tiktok", title: "تيك توك", description: "الإنفاق والظهور والنقرات لكل إعلان يوميًا",
+      configured: !!tt, accountHint: tt?.advertiserId ?? null, connectedBy: "accessTokenEnc",
+      envNames: ["TIKTOK_APP_ID", "TIKTOK_APP_SECRET", "TOKEN_ENCRYPTION_KEY"],
+    },
+  ];
+}
+
+async function PlatformCard({ def }: { def: PlatformDef }) {
   const [row, runs, account] = await Promise.all([
-    getIntegration("snapchat"),
-    recentRuns("snapchat", 3),
-    getDb().select().from(schema.adAccounts).where(eq(schema.adAccounts.platform, "snapchat")).limit(1),
+    getIntegration(def.key),
+    recentRuns(def.key, 3),
+    getDb().select().from(schema.adAccounts).where(eq(schema.adAccounts.platform, def.key)).limit(1),
   ]);
-  const connected = !!row?.refreshTokenEnc;
+  const connected = !!row?.[def.connectedBy];
   const status = !connected ? "off" : row?.status === "error" ? "error" : "connected";
   const acc = account[0];
   return (
-    <SectionCard title="سناب شات" description="الإنفاق والظهور والنقرات لكل إعلان يوميًا" action={<Status status={status} />}>
+    <SectionCard title={def.title} description={def.description} action={<Status status={status} />}>
       <div className="grid gap-4">
-        {!cfg && (
+        {!def.configured && (
           <p className="text-sm text-destructive">
-            أضف في Vercel: <code dir="ltr">SNAPCHAT_CLIENT_ID</code>، <code dir="ltr">SNAPCHAT_CLIENT_SECRET</code>،
-            {" "}<code dir="ltr">SNAPCHAT_AD_ACCOUNT_ID</code>، <code dir="ltr">TOKEN_ENCRYPTION_KEY</code>.
+            أضف في Vercel:{" "}
+            {def.envNames.map((n, i) => <span key={n}>{i > 0 && "، "}<code dir="ltr">{n}</code></span>)}
           </p>
         )}
         <div>
-          <Row label="الحساب الإعلاني">{acc ? `${acc.name ?? ""}` : (cfg ? <span dir="ltr">{cfg.adAccountId}</span> : "—")}</Row>
-          <Row label="العملة / المنطقة الزمنية"><span dir="ltr">{acc ? `${acc.currency} · ${acc.timezone}` : "—"}</span></Row>
+          <Row label="الحساب الإعلاني">{acc?.name ?? (def.accountHint ? <span dir="ltr">{def.accountHint}</span> : "—")}</Row>
+          <Row label="العملة / المنطقة الزمنية"><span dir="ltr">{acc ? `${acc.currency ?? "?"} · ${acc.timezone ?? "?"}` : "—"}</span></Row>
           <Row label="آخر مزامنة">{row?.lastSyncAt ? formatDateTime(row.lastSyncAt) : "—"}</Row>
           {runs[0] && <Row label="آخر تشغيل">{runs[0].status === "ok" ? `نجح (${runs[0].rows} صف)` : runs[0].status === "running" ? "قيد التشغيل" : "فشل"}</Row>}
         </div>
-        {acc && acc.timezone !== "Asia/Riyadh" && (
+        {acc?.timezone && !/Riyadh|GMT\+03|UTC\+03|Etc\/GMT-3/i.test(acc.timezone) && (
           <p className="text-sm text-muted-foreground">
             المنطقة الزمنية للحساب ليست الرياض، لذلك قد تختلف حدود الأيام قليلًا عن أيام المتجر.
           </p>
         )}
         {row?.lastError && <p className="text-sm break-words text-destructive" dir="auto">{row.lastError}</p>}
-        {cfg && (
+        {def.configured && (
           <div className="flex flex-wrap items-start gap-3">
-            {connected && <SnapchatSyncForm />}
+            {connected && <SyncForm platform={def.key} />}
             <Button asChild size="sm" variant={connected ? "outline" : "default"}>
-              {/* Full navigation: the route redirects to Snapchat's consent page. */}
-              <a href="/api/oauth/snapchat/start">{connected ? "إعادة الربط" : "ربط سناب شات"}</a>
+              {/* Full navigation: the route redirects to the platform's consent page. */}
+              <a href={`/api/oauth/${def.key}/start`}>{connected ? "إعادة الربط" : `ربط ${def.title}`}</a>
             </Button>
             {connected && (
-              <form action={disconnectSnapchat}>
+              <form action={disconnect}>
+                <input type="hidden" name="platform" value={def.key} />
                 <Button type="submit" size="sm" variant="ghost">فصل</Button>
               </form>
             )}
           </div>
         )}
         <p className="text-xs text-muted-foreground">
-          رابط إعادة التوجيه في تطبيق Snap OAuth: <code dir="ltr">{appUrl()}/api/oauth/snapchat/callback</code>
+          رابط إعادة التوجيه في التطبيق: <code dir="ltr">{appUrl()}/api/oauth/{def.key}/callback</code>
         </p>
       </div>
     </SectionCard>
@@ -147,7 +180,6 @@ function TrackingCard() {
 
 function OtherPlatformsCard() {
   const items = [
-    { name: "تيك توك", note: "بانتظار موافقة TikTok على التطبيق" },
     { name: "إعلانات قوقل", note: "سكربت Google Ads (قريبًا)" },
     { name: "ميتا (انستقرام وفيسبوك وواتساب)", note: "قريبًا" },
   ];
@@ -176,7 +208,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/settings">[
         </div>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
-        <SnapchatCard />
+        {platformDefs().map((d) => <PlatformCard key={d.key} def={d} />)}
         <OrdersCard />
         <TrackingCard />
         <OtherPlatformsCard />

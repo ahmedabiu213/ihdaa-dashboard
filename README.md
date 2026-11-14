@@ -28,6 +28,36 @@ Recharts · Drizzle ORM · Supabase (Postgres + Auth) · Vercel.
 Without Supabase variables, local development skips login so the UI can be previewed.
 In production the app refuses to serve pages until auth is configured.
 
+## Snapchat
+
+1. In Snap Business Manager → Business Details → OAuth Apps, set the redirect URL to
+   `https://ihdaa-dashboard.vercel.app/api/oauth/snapchat/callback`.
+2. In Vercel set `SNAPCHAT_CLIENT_ID`, `SNAPCHAT_CLIENT_SECRET`, `SNAPCHAT_AD_ACCOUNT_ID`, `TOKEN_ENCRYPTION_KEY`.
+3. Dashboard → الربط والمزامنة → ربط سناب شات. The last 90 days are backfilled automatically.
+
+Spend is pulled per ad per day (`/v1/adaccounts/{id}/stats?granularity=DAY&breakdown=ad`) and the
+last 3 days are re-pulled on every run, because Snapchat keeps finalizing recent numbers.
+
+**Schedule.** `vercel.json` runs `/api/cron/sync` once a day (the Vercel Hobby limit). For hourly
+updates, schedule it from Supabase (Database → Extensions: enable `pg_cron` and `pg_net`):
+
+```sql
+select cron.schedule('ihdaa-sync', '7 * * * *', $$
+  select net.http_get(
+    url := 'https://ihdaa-dashboard.vercel.app/api/cron/sync',
+    headers := jsonb_build_object('Authorization', 'Bearer <CRON_SECRET>')
+  );
+$$);
+```
+
+## UTM links
+
+Every ad link uses one scheme (see `src/lib/utm.ts`): `utm_source` = platform,
+`utm_campaign` = campaign ID macro, `utm_content` = ad ID macro, `utm_term` = project.
+IDs, not names, so each donation joins to the exact spend row. Build links on the روابط UTM page.
+
+`pnpm test` checks the link builder.
+
 ## Layout
 
 ```

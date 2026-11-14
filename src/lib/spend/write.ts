@@ -28,11 +28,11 @@ export async function upsertEntities(platform: string, accountId: string, rows: 
   }
 }
 
-/** Replace a platform's API rows for one account and date window, so corrections and zeroed days stick. */
-export async function replaceApiSpend(platform: string, accountId: string, from: string, to: string, rows: SpendRow[]) {
+/** Replace a platform's synced rows for one account and date window, so corrections and zeroed days stick. */
+export async function replaceApiSpend(platform: string, accountId: string, from: string, to: string, rows: SpendRow[], source: "api" | "script" = "api") {
   await getDb().transaction(async (tx) => {
     await tx.delete(schema.spendDaily).where(and(
-      eq(schema.spendDaily.platform, platform), eq(schema.spendDaily.source, "api"),
+      eq(schema.spendDaily.platform, platform), eq(schema.spendDaily.source, source),
       eq(schema.spendDaily.accountExternalId, accountId), between(schema.spendDaily.date, from, to),
     ));
     for (let i = 0; i < rows.length; i += 500) await tx.insert(schema.spendDaily).values(rows.slice(i, i + 500));

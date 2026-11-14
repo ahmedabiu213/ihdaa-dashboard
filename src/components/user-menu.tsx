@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { KeyRound, LogOut } from "lucide-react";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { logout } from "@/app/login/actions";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
@@ -11,6 +12,9 @@ export async function UserMenu() {
         <div className="truncate px-2 pb-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden" dir="ltr">
           {user?.email}
         </div>
+        <SidebarMenuButton asChild tooltip="حسابي">
+          <Link href="/account"><KeyRound /><span>حسابي</span></Link>
+        </SidebarMenuButton>
         <form action={logout}>
           <SidebarMenuButton type="submit" tooltip="تسجيل الخروج">
             <LogOut />

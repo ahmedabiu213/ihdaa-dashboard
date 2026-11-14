@@ -22,6 +22,15 @@ export function getDb(): DB {
   if (globalThis.__db) return globalThis.__db;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
+  try {
+    new URL(url);
+  } catch {
+    // Never echo the value: it contains the database password.
+    throw new Error(
+      "DATABASE_URL is not a valid URL. Common causes: the [YOUR-PASSWORD] placeholder or its brackets are still there, " +
+        "the password contains @ # / ? % : and is not URL-encoded, or the value has quotes or spaces around it.",
+    );
+  }
   const client = postgres(url, { prepare: false, max: 3, idle_timeout: 20 });
   globalThis.__db = drizzle({ client, schema });
   return globalThis.__db;

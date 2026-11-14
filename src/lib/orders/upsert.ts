@@ -64,6 +64,15 @@ export async function upsertOrder(n: NormalizedOrder): Promise<UpsertResult> {
       const [row] = await tx.insert(orders).values(values).returning({ id: orders.id });
       orderId = row.id;
       action = "created";
+    } else if (n.source === "import" && keep.verified && keep.source !== "import") {
+      // A CSV export is less detailed than Salla's own JSON (Make / webhook):
+      // only take its status and amount, keep the richer items and ids.
+      await tx.update(orders).set({
+        status: values.status ?? keep.status, countsAsRevenue: countsAsRevenue(values.status ?? keep.status),
+        totalSar: values.totalSar, updatedAt: new Date(),
+      }).where(eq(orders.id, keep.id));
+      orderId = keep.id;
+      action = "skipped";
     } else if (verified || !keep.verified) {
       // Keep the original order time if the new source doesn't know better.
       const orderedAt = n.source === "browser" ? keep.orderedAt : values.orderedAt;

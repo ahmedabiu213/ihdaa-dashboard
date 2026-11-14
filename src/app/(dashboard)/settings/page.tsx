@@ -14,6 +14,8 @@ import { formatDateTime } from "@/lib/dates";
 import { getIntegration, recentRuns } from "@/lib/integrations/store";
 import { snapchatConfig } from "@/lib/snapchat/client";
 import { tiktokConfig } from "@/lib/tiktok/client";
+import { googleAdsScript } from "@/lib/google/script";
+import { envStatus } from "@/lib/config/env-check";
 import { disconnect } from "./actions";
 import { SyncForm } from "./sync-form";
 
@@ -178,10 +180,39 @@ function TrackingCard() {
   );
 }
 
+async function GoogleCard() {
+  const secret = process.env.GOOGLE_ADS_INGEST_SECRET;
+  const row = await getIntegration("google");
+  return (
+    <SectionCard
+      title="إعلانات قوقل"
+      description="سكربت داخل حساب Google Ads يرسل الإنفاق لكل حملة كل ساعة"
+      action={<Status status={!secret ? "off" : row?.lastSyncAt ? (row.lastError ? "error" : "connected") : "off"} />}
+    >
+      <div className="grid gap-3 text-sm">
+        <Row label="آخر استلام">{row?.lastSyncAt ? formatDateTime(row.lastSyncAt) : "لم يصل شيء بعد"}</Row>
+        {!secret ? (
+          <p className="text-destructive">أضف المتغير <code dir="ltr">GOOGLE_ADS_INGEST_SECRET</code> في Vercel ثم أعد النشر ليظهر السكربت هنا.</p>
+        ) : (
+          <>
+            <ol className="grid list-decimal gap-1.5 ps-5 text-muted-foreground">
+              <li>في Google Ads: <b>Tools → Bulk actions → Scripts</b> ثم زر <b>+</b>.</li>
+              <li>الصق السكربت التالي بالكامل مكان المحتوى الموجود، ثم <b>Authorize</b>.</li>
+              <li>للمرة الأولى: غيّر <code dir="ltr">DAYS = 7</code> إلى <code dir="ltr">90</code> واضغط <b>Run</b>، ثم أعدها إلى 7.</li>
+              <li>اضبط الجدولة على <b>Hourly</b> واحفظ.</li>
+            </ol>
+            <CodeBlock code={googleAdsScript(`${appUrl()}/api/ingest/google`, secret)} />
+            <p className="text-xs text-muted-foreground">السكربت يحتوي مفتاحًا سريًا؛ لا تشاركه خارج حساب Google Ads.</p>
+          </>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
 function OtherPlatformsCard() {
   const items = [
-    { name: "إعلانات قوقل", note: "سكربت Google Ads (قريبًا)" },
-    { name: "ميتا (انستقرام وفيسبوك وواتساب)", note: "قريبًا" },
+    { name: "ميتا (انستقرام وفيسبوك وواتساب)", note: "إدخال يدوي أو ملف CSV من صفحة الإنفاق اليدوي" },
   ];
   return (
     <SectionCard title="منصات أخرى" description="حتى يتم ربطها يمكن إدخال إنفاقها يدويًا">
@@ -194,10 +225,43 @@ function OtherPlatformsCard() {
   );
 }
 
+function EnvCard() {
+  const { groups, problems } = envStatus();
+  const missing = groups.flatMap((g) => g.vars.filter((v) => !v.set && !v.optional));
+  return (
+    <SectionCard
+      title="فحص الإعدادات"
+      description="متغيرات البيئة في Vercel (تُعرض الأسماء فقط، لا القيم)"
+      action={<Status status={missing.length || problems.length ? "error" : "connected"} />}
+      className="lg:col-span-2"
+    >
+      <div className="grid gap-3">
+        {problems.map((p) => <p key={p} className="text-sm text-destructive">{p}</p>)}
+        <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+          {groups.map((g) => (
+            <div key={g.title} className="grid content-start gap-1">
+              <p className="text-xs font-medium text-muted-foreground">{g.title}</p>
+              {g.vars.map((v) => (
+                <p key={v.name} className="flex min-w-0 items-center gap-1.5 text-xs" dir="ltr">
+                  {v.set ? <CheckCircle2 className="size-3.5 shrink-0 text-success" /> : v.optional ? <CircleDashed className="size-3.5 shrink-0 text-muted-foreground" /> : <CircleAlert className="size-3.5 shrink-0 text-destructive" />}
+                  <code className="min-w-0 break-all">{v.name}</code>
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
+        {missing.length > 0 && (
+          <p className="text-xs text-muted-foreground">بعد إضافة أي متغير في Vercel: Deployments ← Redeploy حتى يأخذ مفعوله.</p>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
 async function Content({ searchParams }: { searchParams: PageProps<"/settings">["searchParams"] }) {
   await connection();
   const sp = await searchParams;
-  if (!isDatabaseConfigured()) return <SetupNotice />;
+  if (!isDatabaseConfigured()) return <><div className="grid gap-4 lg:grid-cols-2"><EnvCard /></div><SetupNotice /></>;
   const key = Object.keys(FLASH).find((k) => { const [n, v] = k.split("="); return sp[n] === v; });
   const flash = key ? FLASH[key] : null;
   return (
@@ -208,9 +272,11 @@ async function Content({ searchParams }: { searchParams: PageProps<"/settings">[
         </div>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
+        <EnvCard />
         {platformDefs().map((d) => <PlatformCard key={d.key} def={d} />)}
         <OrdersCard />
         <TrackingCard />
+        <GoogleCard />
         <OtherPlatformsCard />
       </div>
     </>

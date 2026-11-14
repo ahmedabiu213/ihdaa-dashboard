@@ -26,7 +26,7 @@ export function CopyButton({ text, label = "نسخ" }: { text: string; label?: s
 export function CodeBlock({ code }: { code: string }) {
   return (
     <div className="grid gap-2">
-      <pre dir="ltr" className="overflow-x-auto rounded-lg border bg-muted/60 p-3 text-start text-xs leading-relaxed">
+      <pre dir="ltr" className="max-h-72 overflow-auto rounded-lg border bg-muted/60 p-3 text-start text-xs leading-relaxed">
         <code>{code}</code>
       </pre>
       <div><CopyButton text={code} /></div>

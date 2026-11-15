@@ -1,5 +1,5 @@
 import {
-  BarChart3, Banknote, FolderHeart, Link2, Megaphone, PlugZap, ReceiptText, Share2,
+  BarChart3, Banknote, FolderHeart, Link2, Megaphone, PlugZap, ReceiptText, Share2, Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,6 +22,7 @@ export const NAV: { label: string; items: NavItem[] }[] = [
       { href: "/utm", label: "روابط UTM", icon: Link2, description: "إنشاء روابط موحّدة للإعلانات" },
       { href: "/spend", label: "الإنفاق اليدوي", icon: Banknote, description: "إدخال الإنفاق أو رفع ملف CSV" },
       { href: "/settings", label: "الربط والمزامنة", icon: PlugZap, description: "ربط المنصات وحالة المزامنة" },
+      { href: "/users", label: "المستخدمون", icon: Users, description: "إنشاء الحسابات وإدارتها" },
     ],
   },
 ];

@@ -22,8 +22,8 @@ export function AppSidebar({ footer }: { footer: React.ReactNode }) {
               <Link href="/">
                 <BrandMark />
                 <div className="grid leading-tight">
-                  <span className="font-semibold">إهداء</span>
-                  <span className="text-xs text-muted-foreground">لوحة التسويق</span>
+                  <span className="font-semibold text-brand-navy">جمعية إهداء</span>
+                  <span className="text-xs text-brand-steel">لوحة التسويق</span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -37,7 +37,7 @@ export function AppSidebar({ footer }: { footer: React.ReactNode }) {
             <SidebarMenu>
               {group.items.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={isActive(item.href)} tooltip={item.label}>
+                  <SidebarMenuButton asChild isActive={isActive(item.href)} tooltip={item.label} className="data-[active=true]:shadow-[inset_-3px_0_0_var(--brand-gold)]">
                     <Link href={item.href}>
                       <item.icon />
                       <span>{item.label}</span>

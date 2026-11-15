@@ -29,7 +29,7 @@ export function VisitsCard({
   const conv = totals.sessions ? donations / totals.sessions : null;
   const prevConv = previous.sessions ? previousDonations / previous.sessions : null;
   return (
-    <SectionCard title="الزيارات" description={`${rangeLabel(range)} · من سكربت التتبع في المتجر`}>
+    <SectionCard title="الزيارات" description={rangeLabel(range)}>
       <div className="grid gap-6">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="الزيارات" tip="عدد الجلسات: كل زيارة للمتجر تُحسب مرة حتى لو تصفح الزائر عدة صفحات."

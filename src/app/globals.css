@@ -25,6 +25,9 @@
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-success: var(--success);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-steel: var(--brand-steel);
   --color-chart-grid: var(--chart-grid);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -52,39 +55,42 @@
 
 :root {
   --background: oklch(0.985 0.002 270);
-  --foreground: oklch(0.21 0.015 270);
+  --foreground: #1d2f35;
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.015 270);
+  --card-foreground: #1d2f35;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.015 270);
-  --primary: #5b4fe0;
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.965 0.006 275);
-  --secondary-foreground: oklch(0.3 0.03 275);
+  --popover-foreground: #1d2f35;
+  --primary: #224049;
+  --primary-foreground: #ffffff;
+  --secondary: #eaf0f2;
+  --secondary-foreground: #224049;
   --muted: oklch(0.965 0.004 270);
-  --muted-foreground: oklch(0.52 0.015 270);
-  --accent: oklch(0.955 0.025 275);
-  --accent-foreground: oklch(0.38 0.15 275);
+  --muted-foreground: #5c6f75;
+  --accent: #f6efe6;
+  --accent-foreground: #224049;
   --destructive: oklch(0.577 0.245 27.325);
   --success: oklch(0.6 0.14 155);
   --border: oklch(0.925 0.005 270);
   --input: oklch(0.91 0.006 270);
-  --ring: #5b4fe0;
-  --chart-1: #5b4fe0;
-  --chart-2: #eb6834;
-  --chart-3: oklch(0.65 0.14 165);
+  --ring: #4E7885;
+  --chart-1: #224049;
+  --chart-2: #C49A6C;
+  --chart-3: #4E7885;
   --chart-4: oklch(0.62 0.2 340);
   --chart-5: oklch(0.6 0.12 230);
   --chart-grid: oklch(0.94 0.004 270);
   --radius: 0.625rem;
   --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.3 0.015 270);
-  --sidebar-primary: #5b4fe0;
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.95 0.03 275);
-  --sidebar-accent-foreground: oklch(0.38 0.15 275);
+  --sidebar-foreground: #2c4249;
+  --sidebar-primary: #224049;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaf0f2;
+  --sidebar-accent-foreground: #224049;
   --sidebar-border: oklch(0.93 0.005 270);
-  --sidebar-ring: oklch(0.54 0.2 275);
+  --sidebar-ring: #4E7885;
+  --brand-navy: #224049;
+  --brand-gold: #C49A6C;
+  --brand-steel: #4E7885;
 }
 
 .dark {

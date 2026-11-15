@@ -15,6 +15,7 @@ Database tables and the hourly sync schedule already exist in the Supabase proje
 | `DATABASE_URL` | Supabase → **Connect** → **Transaction pooler** (port 6543), with the database password in place of `[YOUR-PASSWORD]` (no brackets). If the password has `@ # / ? % :`, reset it in Supabase to letters and digits only |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://dyfhywnikwrjstckldyb.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_Z_bPlk-JcHvYFypAl7wwnQ_teqA_Nfn` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API Keys → **secret** key. Server only; lets admins create and delete users on the **المستخدمون** page |
 | `NEXT_PUBLIC_APP_URL` | `https://ihdaa-dashboard.vercel.app` |
 | `NEXT_PUBLIC_STORE_URL` | `https://store-ihdaa.org.sa/ar` |
 | `STORE_ORIGINS` | `https://store-ihdaa.org.sa` |

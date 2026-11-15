@@ -10,7 +10,7 @@ export function SectionCard({
   return (
     <Card className={cn("gap-4 shadow-none", className)}>
       <CardHeader>
-        <CardTitle className="text-base font-semibold">{title}</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-base font-semibold text-brand-navy"><span className="h-4 w-1 rounded-full bg-brand-gold" aria-hidden />{title}</CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
         {action && <CardAction>{action}</CardAction>}
       </CardHeader>

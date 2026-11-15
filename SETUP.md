@@ -56,8 +56,10 @@ After each connection the card shows the last sync and any error text from the p
 
 1. Google Tag Manager → new **Custom HTML** tag, trigger **All Pages**, paste the line from the
    **سكربت التتبع في المتجر** card. Publish.
-2. Make every ad link in **روابط UTM**.
-3. Test: open one of those links with `&ihd_debug=1` added, make a 1 SAR donation, and check that it
+2. Existing TikTok and Snapchat ads need no changes: their own auto-added UTMs and click IDs are
+   captured as-is and matched to campaigns by ID or name. Use **روابط UTM** for WhatsApp/SMS links,
+   or when you want ad- and project-level matching.
+3. Test: open an ad's link (or any store link) with `&ihd_debug=1` added, make a 1 SAR donation, and check that it
    appears in **التبرعات** with the right channel. The browser console shows `[ihdaa]` lines.
 
 ## 5. Verified orders from Salla (choose one)

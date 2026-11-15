@@ -51,9 +51,11 @@
 
   function captureTouch() {
     var t = {};
-    ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].forEach(function (k) {
+    // Platforms' own auto-tagging is captured as-is: TikTok puts the campaign name in
+    // utm_campaign and its ID in utm_id. Source/medium are lowercased; names keep their case.
+    ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "utm_id"].forEach(function (k) {
       var v = params.get(k);
-      if (v) t[k] = v.trim().toLowerCase().slice(0, 200);
+      if (v) t[k] = (k === "utm_source" || k === "utm_medium" ? v.trim().toLowerCase() : v.trim()).slice(0, 200);
     });
     for (var p in CLICK_PARAMS) {
       var c = params.get(p);

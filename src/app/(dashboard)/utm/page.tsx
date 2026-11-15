@@ -26,6 +26,11 @@ async function Content() {
     : [[], []];
   return (
     <>
+      <div className="rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">
+        هذه الأداة اختيارية. روابط UTM التي تضيفها تيك توك وسناب شات تلقائيًا تُلتقط كما هي:
+        تُطابَق الحملة بالمعرّف أو بالاسم، وإن لم يوجد UTM يُنسب التبرع للمنصة عبر معرّف النقر (ttclid / ScCid).
+        استخدمها للروابط اليدوية مثل واتساب والرسائل، أو لربط التبرعات بالإعلان والمشروع بدقة.
+      </div>
       <SectionCard title="إنشاء رابط" description="اختر المنصة والصفحة والمشروع، ثم انسخ الرابط إلى الإعلان">
         <UtmBuilder products={products} storeUrl={STORE_URL} />
       </SectionCard>

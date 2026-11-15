@@ -4,7 +4,7 @@ const s = (max: number) => z.string().trim().max(max).optional().nullable().tran
 
 /** The ad touch the script remembers (last non-direct, 30 days). */
 export const touchSchema = z.object({
-  utm_source: s(100), utm_medium: s(100), utm_campaign: s(200), utm_content: s(200), utm_term: s(200),
+  utm_source: s(100), utm_medium: s(100), utm_campaign: s(200), utm_content: s(200), utm_term: s(200), utm_id: s(100),
   click_type: z.enum(["sccid", "ttclid", "gclid", "gbraid", "wbraid", "fbclid"]).optional().nullable(),
   click_id: s(300),
   referrer: s(500),

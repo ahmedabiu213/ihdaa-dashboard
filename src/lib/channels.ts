@@ -42,6 +42,20 @@ const SOURCE_ALIASES: Record<string, Channel> = {
   sms: "sms", email: "email", newsletter: "email",
 };
 
+/** Platform auto-tagging spells sources many ways: "TikTok", "tiktok_ads", "snapchat-ads", "Instagram_Feed"… */
+const FUZZY_SOURCES: Array<[RegExp, Channel]> = [
+  [/tik.?tok/, "tiktok"],
+  [/snap/, "snapchat"],
+  [/insta/, "instagram"],
+  [/whats.?app/, "whatsapp"],
+  [/face.?book|^fb[_\-]|meta/, "facebook"],
+  [/google|adwords|gads|youtube/, "google"],
+];
+function fuzzySource(src: string): Channel | null {
+  for (const [re, ch] of FUZZY_SOURCES) if (re.test(src)) return ch;
+  return null;
+}
+
 const SEARCH_REFERRERS = /(^|\.)(google|bing|yahoo|duckduckgo|yandex)\./i;
 const SOCIAL_REFERRERS: Array<[RegExp, Channel]> = [
   [/snapchat\.com$/i, "snapchat"],
@@ -62,7 +76,7 @@ export function resolveChannel(input: {
   ownHost?: string | null;
 }): Channel {
   const src = input.utmSource?.trim().toLowerCase();
-  if (src) return SOURCE_ALIASES[src] ?? (isChannel(src) ? src : "other");
+  if (src) return SOURCE_ALIASES[src] ?? (isChannel(src) ? src : fuzzySource(src) ?? "other");
   switch (input.clickIdType) {
     case "sccid": return "snapchat";
     case "ttclid": return "tiktok";

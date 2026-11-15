@@ -39,8 +39,8 @@ export async function listDonations(f: DonationListFilters, page: number, pageSi
              coalesce(a.channel, 'unknown') channel, e.name campaign, a.utm_campaign, a.utm_term,
              (select string_agg(i.name, '، ') from order_items i where i.order_id = o.id) projects
       from orders o
-      left join attributions a on a.order_id = o.id
-      left join ad_entities e on e.platform = a.channel and e.level = 'campaign' and e.external_id = a.utm_campaign
+      left join attribution_resolved a on a.order_id = o.id
+      left join ad_entities e on e.platform = a.channel and e.level = 'campaign' and e.external_id = a.campaign_key
       where ${w}
       order by o.ordered_at desc
       limit ${pageSize} offset ${(page - 1) * pageSize}`),

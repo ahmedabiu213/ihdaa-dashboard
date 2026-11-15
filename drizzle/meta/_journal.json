@@ -15,6 +15,20 @@
       "when": 1794606205699,
       "tag": "0001_enable_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794719894229,
+      "tag": "0002_utm_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794719894848,
+      "tag": "0003_attribution_resolved",
+      "breakpoints": true
     }
   ]
 }

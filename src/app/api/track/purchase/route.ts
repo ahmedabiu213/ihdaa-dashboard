@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     sessionId: p.sid,
     channel: resolveChannel({ utmSource: t.utm_source, clickIdType: t.click_type, referrer: t.referrer, ownHost: ownHost() }),
     utmSource: t.utm_source, utmMedium: t.utm_medium, utmCampaign: t.utm_campaign,
-    utmContent: t.utm_content, utmTerm: t.utm_term,
+    utmContent: t.utm_content, utmTerm: t.utm_term, utmId: t.utm_id,
     clickIdType: t.click_type ?? null, clickId: t.click_id,
     landingPath: t.landing,
     touchedAt: t.ts ? new Date(t.ts) : null,

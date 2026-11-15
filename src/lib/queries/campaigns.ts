@@ -22,14 +22,15 @@ export type CampaignRow = {
 };
 
 /**
- * Spend per campaign (or ad) joined to donations whose UTM carries that ID:
- * utm_campaign = campaign ID, utm_content = ad ID (see lib/utm.ts).
+ * Spend per campaign (or ad) joined to the donations attributed to it. The
+ * attribution_resolved view matches the platform's own UTMs by ID or by name.
  * Rows appear if they have spend OR donations in the range.
  */
 export async function getCampaignRows(f: Filters, level: CampaignLevel): Promise<CampaignRow[]> {
   const { from, to } = f.range;
   const idCol = level === "campaign" ? sql.raw("campaign_id") : sql.raw("ad_id");
-  const utmCol = level === "campaign" ? sql.raw("a.utm_campaign") : sql.raw("a.utm_content");
+  // Resolved by the attribution_resolved view: ID or name from the platform's own UTMs.
+  const utmCol = level === "campaign" ? sql.raw("a.campaign_key") : sql.raw("a.ad_key");
   const ch = f.channel ? sql`and platform = ${f.channel}` : sql``;
   const chA = f.channel ? sql`and a.channel = ${f.channel}` : sql``;
 
@@ -45,7 +46,7 @@ export async function getCampaignRows(f: Filters, level: CampaignLevel): Promise
       group by 1, 2
     ), rev as (
       select a.channel as platform, ${utmCol} as id, count(*) donations, sum(o.total_sar) revenue
-      from orders o join attributions a on a.order_id = o.id
+      from orders o join attribution_resolved a on a.order_id = o.id
       where o.counts_as_revenue and o.ordered_date between ${from} and ${to}
         and ${utmCol} is not null and ${utmCol} <> '' ${chA}
       group by 1, 2

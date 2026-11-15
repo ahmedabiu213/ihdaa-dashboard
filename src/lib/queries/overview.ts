@@ -130,8 +130,8 @@ export async function getRecentDonations(f: Filters, limit = 8): Promise<RecentD
            coalesce(e.name, a.utm_campaign) as campaign,
            (select string_agg(i.name, '، ') from order_items i where i.order_id = o.id) as project
     from orders o
-    left join attributions a on a.order_id = o.id
-    left join ad_entities e on e.platform = a.channel and e.level = 'campaign' and e.external_id = a.utm_campaign
+    left join attribution_resolved a on a.order_id = o.id
+    left join ad_entities e on e.platform = a.channel and e.level = 'campaign' and e.external_id = a.campaign_key
     where o.counts_as_revenue and o.ordered_date between ${f.range.from} and ${f.range.to} ${ch}
     order by o.ordered_at desc limit ${limit}`);
   return rows.map((r) => ({

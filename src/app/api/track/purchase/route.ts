@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
-import { resolveChannel } from "@/lib/channels";
+import { appFromUserAgent, resolveChannel } from "@/lib/channels";
 import { json } from "@/lib/http";
 import { upsertOrder } from "@/lib/orders/upsert";
 import { toSar } from "@/lib/orders/normalize-salla";
@@ -23,14 +23,15 @@ export async function POST(req: Request) {
   if ("error" in r) return json({ error: r.error }, 400, headers);
   const p = r.data;
   const t = p.touch ?? {};
+  const uaApp = appFromUserAgent(req.headers.get("user-agent"));
 
   await getDb().insert(schema.attributions).values({
     orderRef: p.order_ref,
     visitorId: p.vid,
     sessionId: p.sid,
-    channel: resolveChannel({ utmSource: t.utm_source, clickIdType: t.click_type, referrer: t.referrer, ownHost: ownHost() }),
+    channel: resolveChannel({ utmSource: t.utm_source, clickIdType: t.click_type, referrer: t.referrer, ownHost: ownHost(), uaApp }),
     utmSource: t.utm_source, utmMedium: t.utm_medium, utmCampaign: t.utm_campaign,
-    utmContent: t.utm_content, utmTerm: t.utm_term, utmId: t.utm_id,
+    utmContent: t.utm_content, utmTerm: t.utm_term, utmId: t.utm_id, uaApp,
     clickIdType: t.click_type ?? null, clickId: t.click_id,
     landingPath: t.landing,
     touchedAt: t.ts ? new Date(t.ts) : null,

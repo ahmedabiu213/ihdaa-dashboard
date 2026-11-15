@@ -18,6 +18,7 @@ export const visitSchema = z.object({
   path: z.string().max(500),
   title: s(300),
   referrer: s(500),
+  q: s(600),
   touch: touchSchema.optional().nullable(),
 });
 

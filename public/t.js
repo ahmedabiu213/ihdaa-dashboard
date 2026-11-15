@@ -19,7 +19,8 @@
   var BASE = script && script.src ? new URL(script.src).origin : "https://ihdaa-dashboard.vercel.app";
   var TOUCH_KEY = "ihd_touch", VID_KEY = "ihd_vid", SID_KEY = "ihd_sid", QUEUE_KEY = "ihd_queue", SENT_PREFIX = "ihd_sent_";
   var TOUCH_TTL = 30 * 24 * 3600 * 1000;
-  var CLICK_PARAMS = { sccid: "sccid", ScCid: "sccid", ttclid: "ttclid", gclid: "gclid", gbraid: "gbraid", wbraid: "wbraid", fbclid: "fbclid" };
+  // Ad click IDs, matched case-insensitively (Snapchat sends "ScCid").
+  var CLICK_PARAMS = { sccid: "sccid", ttclid: "ttclid", gclid: "gclid", gbraid: "gbraid", wbraid: "wbraid", fbclid: "fbclid" };
   var PURCHASE_EVENTS = { purchase: 1, order_completed: 1, checkout_completed: 1, transaction: 1, ecommerce_purchase: 1 };
 
   /* ── storage helpers (all wrapped: private mode can throw) ── */
@@ -29,16 +30,47 @@
   function readJson(store, k, fallback) { try { return JSON.parse(get(store, k)) || fallback; } catch (e) { return fallback; } }
   function rid(p) { return p + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 
-  var params = new URLSearchParams(location.search);
+  /* Cookies back up localStorage: some in-app browsers block or clear one but not the other. */
+  function cookieGet(k) {
+    try {
+      var m = document.cookie.match(new RegExp("(?:^|; )" + k + "=([^;]*)"));
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch (e) { return null; }
+  }
+  function cookieSet(k, v, days) {
+    try {
+      if (v.length > 1800) return; // stay well under the cookie size limit
+      document.cookie = k + "=" + encodeURIComponent(v) + "; path=/; max-age=" + days * 86400 + "; SameSite=Lax" +
+        (location.protocol === "https:" ? "; Secure" : "");
+    } catch (e) {}
+  }
+  function getBoth(k) { return get("localStorage", k) || cookieGet(k); }
+  function setBoth(k, v, days) { set("localStorage", k, v); cookieSet(k, v, days); }
+
+  /* Query parameters with lowercase names, so UTM_Source / ScCid / sccid all match. */
+  var params = (function () {
+    var map = {}, raw = {};
+    try {
+      new URLSearchParams(location.search).forEach(function (v, k) { raw[k] = v; if (map[k.toLowerCase()] == null) map[k.toLowerCase()] = v; });
+    } catch (e) {
+      location.search.replace(/^\?/, "").split("&").forEach(function (pair) {
+        var i = pair.indexOf("="); if (i < 1) return;
+        try { var k = decodeURIComponent(pair.slice(0, i)), v = decodeURIComponent(pair.slice(i + 1).replace(/\+/g, " ")); raw[k] = v; map[k.toLowerCase()] = v; } catch (e2) {}
+      });
+    }
+    return { get: function (k) { var v = map[String(k).toLowerCase()]; return v == null ? null : v; } };
+  })();
   if (params.get("ihd_debug") === "1") set("localStorage", "ihd_debug", "1");
   if (params.get("ihd_debug") === "0") del("localStorage", "ihd_debug");
   var DEBUG = get("localStorage", "ihd_debug") === "1";
   function log() { if (DEBUG) try { console.log.apply(console, ["[ihdaa]"].concat([].slice.call(arguments))); } catch (e) {} }
 
-  var vid = get("localStorage", VID_KEY) || rid("v_");
-  set("localStorage", VID_KEY, vid);
-  var sid = get("sessionStorage", SID_KEY) || rid("s_");
+  var vid = getBoth(VID_KEY) || rid("v_");
+  setBoth(VID_KEY, vid, 365);
+  // A session ends after 30 minutes without a page view (session cookie + sessionStorage).
+  var sid = get("sessionStorage", SID_KEY) || cookieGet(SID_KEY) || rid("s_");
   set("sessionStorage", SID_KEY, sid);
+  cookieSet(SID_KEY, sid, 30 / 1440);
 
   /* ── 1. attribution touch ── */
   function externalReferrer() {
@@ -67,36 +99,52 @@
     if (t.utm_source || t.click_id || t.referrer) {
       t.landing = (location.pathname + location.search).slice(0, 500);
       t.ts = Date.now();
-      set("localStorage", TOUCH_KEY, JSON.stringify(t));
+      setBoth(TOUCH_KEY, JSON.stringify(t), 30);
       log("touch saved", t);
     }
   }
 
   function currentTouch() {
-    var t = readJson("localStorage", TOUCH_KEY, null);
-    if (t && t.ts && Date.now() - t.ts > TOUCH_TTL) { del("localStorage", TOUCH_KEY); return null; }
+    var t = null;
+    try { t = JSON.parse(getBoth(TOUCH_KEY)); } catch (e) {}
+    if (t && t.ts && Date.now() - t.ts > TOUCH_TTL) { del("localStorage", TOUCH_KEY); cookieSet(TOUCH_KEY, "", 0); return null; }
     return t;
   }
 
   /* ── transport: text/plain avoids a CORS preflight ── */
   function post(path, body) {
-    return fetch(BASE + path, {
-      method: "POST", keepalive: true, credentials: "omit",
-      headers: { "Content-Type": "text/plain" }, body: JSON.stringify(body)
-    });
+    var data = JSON.stringify(body);
+    if (typeof fetch === "function") {
+      return fetch(BASE + path, {
+        method: "POST", keepalive: true, credentials: "omit",
+        headers: { "Content-Type": "text/plain" }, body: data
+      });
+    }
+    // Very old browsers: sendBeacon gives no response, so report it as accepted.
+    var ok = false;
+    try { ok = navigator.sendBeacon(BASE + path, data); } catch (e) {}
+    return { then: function (f) { if (ok) f({ ok: true, status: 202 }); return this; }, "catch": function (f) { if (!ok) f(); return this; } };
   }
 
   /* ── 2. page view ── */
   function trackVisit() {
-    post("/api/track/visit", {
+    var body = {
       vid: vid, sid: sid, path: location.pathname.slice(0, 500), title: (document.title || "").slice(0, 300),
-      referrer: externalReferrer(), touch: currentTouch()
-    }).catch(function () {});
+      referrer: externalReferrer(), q: location.search.slice(0, 600) || null, touch: currentTouch()
+    };
+    // One retry: mobile networks often drop the first request right after an ad click.
+    post("/api/track/visit", body).then(function (r) { log("visit sent", r && r.status); })
+      ["catch"](function () { setTimeout(function () { post("/api/track/visit", body)["catch"](function () {}); }, 2500); });
   }
 
   /* ── 3. purchases, with a retry queue that survives closed tabs ── */
-  function readQueue() { return readJson("localStorage", QUEUE_KEY, []); }
-  function writeQueue(q) { set("localStorage", QUEUE_KEY, JSON.stringify(q.slice(-20))); }
+  // Kept in memory too, so purchases still send when storage is blocked.
+  var memQueue = [], memSent = {};
+  function readQueue() {
+    var stored = readJson("localStorage", QUEUE_KEY, []);
+    return stored.length ? stored : memQueue;
+  }
+  function writeQueue(q) { memQueue = q.slice(-20); set("localStorage", QUEUE_KEY, JSON.stringify(memQueue)); }
 
   function flushQueue() {
     var q = readQueue();
@@ -123,8 +171,10 @@
     var ref = o.transaction_id || o.order_id || o.id || o.reference_id || o.order_number;
     if (ref == null || ref === "") return;
     ref = String(ref).slice(0, 64);
-    if (get("localStorage", SENT_PREFIX + ref)) return log("already sent", ref);
+    if (memSent[ref] || get("localStorage", SENT_PREFIX + ref) || cookieGet(SENT_PREFIX + ref)) return log("already sent", ref);
+    memSent[ref] = 1;
     set("localStorage", SENT_PREFIX + ref, String(Date.now()));
+    cookieSet(SENT_PREFIX + ref, "1", 7);
 
     var items = (o.items || o.products || []).slice(0, 50).map(function (i) {
       return {
@@ -193,10 +243,39 @@
     if (ref) setTimeout(function () { reportPurchase({ order_id: ref }, "thank-you-url"); }, 3000);
   }
 
-  captureTouch();
-  trackVisit();
-  watchDataLayer();
-  thankYouFallback();
-  flushQueue();
+  /* Each step is isolated: a failure in one never stops the others. */
+  function safe(name, fn) { try { fn(); } catch (e) { log(name + " failed", e && e.message); } }
+
+  /* The theme may replace window.dataLayer after we hooked it, or push before GTM
+     loaded us: re-scan for a minute so a purchase event is never missed. */
+  function rescanDataLayer() {
+    var runs = 0;
+    var timer = setInterval(function () {
+      runs++;
+      safe("rescan", function () {
+        var dl = window.dataLayer || [];
+        for (var i = 0; i < dl.length; i++) { var p = fromDataLayer(dl[i]); if (p) reportPurchase(p, "dataLayer-rescan"); }
+      });
+      if (runs >= 40) clearInterval(timer);
+    }, 1500);
+  }
+
+  function start() {
+    safe("touch", captureTouch);
+    safe("visit", trackVisit);
+    safe("dataLayer", watchDataLayer);
+    safe("rescan", rescanDataLayer);
+    safe("thank-you", thankYouFallback);
+    safe("queue", flushQueue);
+  }
+
+  // Prerendered pages are not real visits until they are shown.
+  if (document.visibilityState === "prerender") {
+    document.addEventListener("visibilitychange", function once() {
+      if (document.visibilityState !== "prerender") { document.removeEventListener("visibilitychange", once); start(); }
+    });
+  } else {
+    start();
+  }
   log("loaded", { base: BASE, vid: vid, sid: sid, touch: currentTouch() });
 })();

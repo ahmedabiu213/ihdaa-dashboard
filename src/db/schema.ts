@@ -109,6 +109,8 @@ export const visits = pgTable(
     utmContent: text("utm_content"),
     utmTerm: text("utm_term"),
     utmId: text("utm_id"), // campaign ID when the platform puts the name in utm_campaign (TikTok)
+    uaApp: text("ua_app"), // in-app browser detected from the User-Agent (snapchat, tiktok, …)
+    query: text("query"), // landing query string, kept to diagnose untagged traffic
     clickIdType: text("click_id_type"), // sccid | ttclid | gclid | fbclid
     clickId: text("click_id"),
     visitedAt: timestamp("visited_at", { withTimezone: true }).notNull().defaultNow(),
@@ -141,6 +143,7 @@ export const attributions = pgTable(
     utmContent: text("utm_content"),
     utmTerm: text("utm_term"),
     utmId: text("utm_id"), // campaign ID when the platform puts the name in utm_campaign (TikTok)
+    uaApp: text("ua_app"),
     clickIdType: text("click_id_type"),
     clickId: text("click_id"),
     landingPath: text("landing_path"),

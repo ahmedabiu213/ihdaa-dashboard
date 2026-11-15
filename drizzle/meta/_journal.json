@@ -29,6 +29,13 @@
       "when": 1794719894848,
       "tag": "0003_attribution_resolved",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794735463325,
+      "tag": "0004_ua_app",
+      "breakpoints": true
     }
   ]
 }

@@ -56,7 +56,8 @@ function fuzzySource(src: string): Channel | null {
   return null;
 }
 
-const SEARCH_REFERRERS = /(^|\.)(google|bing|yahoo|duckduckgo|yandex)\./i;
+// Only the search sites themselves, not other Google hosts (tagassistant.google.com, mail.google.com…).
+const SEARCH_REFERRERS = /^(www\.|m\.|search\.)?(google|bing|yahoo|duckduckgo|yandex)\.[a-z.]{2,6}$/i;
 const SOCIAL_REFERRERS: Array<[RegExp, Channel]> = [
   [/snapchat\.com$/i, "snapchat"],
   [/tiktok\.com$/i, "tiktok"],
@@ -74,6 +75,7 @@ export function resolveChannel(input: {
   clickIdType?: string | null;
   referrer?: string | null;
   ownHost?: string | null;
+  uaApp?: Channel | null;
 }): Channel {
   const src = input.utmSource?.trim().toLowerCase();
   if (src) return SOURCE_ALIASES[src] ?? (isChannel(src) ? src : fuzzySource(src) ?? "other");
@@ -86,13 +88,36 @@ export function resolveChannel(input: {
   if (input.referrer) {
     try {
       const host = new URL(input.referrer).hostname;
-      if (input.ownHost && host.endsWith(input.ownHost)) return "direct";
-      for (const [re, ch] of SOCIAL_REFERRERS) if (re.test(host)) return ch;
-      if (SEARCH_REFERRERS.test(host)) return "organic";
-      return "referral";
+      if (!(input.ownHost && host.endsWith(input.ownHost))) {
+        for (const [re, ch] of SOCIAL_REFERRERS) if (re.test(host)) return ch;
+        // A visit inside an app's own browser belongs to that app even if it passed through a link page.
+        if (input.uaApp) return input.uaApp;
+        if (SEARCH_REFERRERS.test(host)) return "organic";
+        return "referral";
+      }
     } catch {
       /* fall through */
     }
   }
-  return "direct";
+  // No tags and no referrer: apps like Snapchat open links in their own browser,
+  // which sends no referrer but identifies itself in the User-Agent.
+  return input.uaApp ?? "direct";
 }
+
+const UA_APPS: Array<[RegExp, Channel]> = [
+  [/Snapchat/i, "snapchat"],
+  [/musical_ly|BytedanceWebview|TikTok|trill_/i, "tiktok"],
+  [/Instagram/i, "instagram"],
+  [/FBAN|FBAV|FB_IAB|FBIOS/i, "facebook"],
+  [/WhatsApp/i, "whatsapp"],
+];
+
+/** Which app's built-in browser a request came from, if any. */
+export function appFromUserAgent(ua: string | null | undefined): Channel | null {
+  if (!ua) return null;
+  for (const [re, ch] of UA_APPS) if (re.test(ua)) return ch;
+  return null;
+}
+
+const BOT_UA = /bot\b|crawl|spider|slurp|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|monitor|facebookexternalhit|preview/i;
+export const isBotUserAgent = (ua: string | null | undefined) => !ua || BOT_UA.test(ua);

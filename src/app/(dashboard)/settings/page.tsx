@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { CheckCircle2, CircleAlert, CircleDashed, Clock } from "lucide-react";
 import { PageBody, PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getDb, isDatabaseConfigured, schema } from "@/db";
 import { formatDateTime } from "@/lib/dates";
+import { formatInt } from "@/lib/format";
+import { ChannelName } from "@/components/channel-dot";
 import { getIntegration, recentRuns } from "@/lib/integrations/store";
 import { snapchatConfig } from "@/lib/snapchat/client";
 import { tiktokConfig } from "@/lib/tiktok/client";
@@ -163,17 +165,44 @@ async function OrdersCard() {
   );
 }
 
-function TrackingCard() {
+async function TrackingCard() {
+  const db = getDb();
+  const [stats] = await db.execute<{ last: string | null; sessions: string; tagged: string; by_app: string; untagged: string }>(sql`
+    select max(visited_at) last, count(distinct session_id) sessions,
+      count(distinct session_id) filter (where utm_source is not null or click_id is not null) tagged,
+      count(distinct session_id) filter (where utm_source is null and click_id is null and ua_app is not null) by_app,
+      count(distinct session_id) filter (where channel = 'direct') untagged
+    from visits where visited_at > now() - interval '24 hours'`);
+  const byChannel = await db.execute<{ channel: string; sessions: string }>(sql`
+    select channel, count(distinct session_id) sessions from visits
+    where visited_at > now() - interval '24 hours' group by 1 order by 2 desc`);
+  const n = (v: string | undefined) => Number(v ?? 0);
   return (
-    <SectionCard title="سكربت التتبع في المتجر" description="يحفظ مصدر الزائر ويبلغ عن التبرع مع رقم الطلب">
+    <SectionCard
+      title="سكربت التتبع في المتجر"
+      description="يحفظ مصدر الزائر ويبلغ عن التبرع مع رقم الطلب"
+      action={<Status status={stats?.last ? "connected" : "off"} />}
+    >
       <div className="grid gap-3 text-sm">
+        <div>
+          <Row label="آخر زيارة مسجّلة">{stats?.last ? formatDateTime(stats.last) : "لم تصل زيارات بعد"}</Row>
+          <Row label="زيارات آخر 24 ساعة">{formatInt(n(stats?.sessions))}</Row>
+          <Row label="معروفة من الرابط (UTM أو معرّف النقر)">{formatInt(n(stats?.tagged))}</Row>
+          <Row label="معروفة من متصفح التطبيق (سناب، تيك توك…)">{formatInt(n(stats?.by_app))}</Row>
+          <Row label="بدون مصدر (مباشر)">{formatInt(n(stats?.untagged))}</Row>
+        </div>
+        {byChannel.length > 0 && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {byChannel.map((c) => <span key={c.channel} className="inline-flex items-center gap-1.5"><ChannelName channel={c.channel} /> {formatInt(n(c.sessions))}</span>)}
+          </div>
+        )}
         <p className="text-muted-foreground">
-          في Google Tag Manager: وسم جديد من نوع <b>Custom HTML</b>، المشغّل <b>All Pages</b>، والصق السطر التالي ثم انشر.
+          في Google Tag Manager: وسم <b>Custom HTML</b> بالمشغّل <b>All Pages</b> يحتوي السطر التالي.
         </p>
         <CodeBlock code={`<script src="${appUrl()}/t.js" async></script>`} />
-        <p className="text-muted-foreground">
-          للتجربة: افتح المتجر مع <code dir="ltr">?ihd_debug=1</code> وراقب Console في المتصفح.
-          تأكد أن <code dir="ltr">STORE_ORIGINS</code> في Vercel يساوي رابط المتجر.
+        <p className="text-xs text-muted-foreground">
+          للتجربة: افتح المتجر مع <code dir="ltr">?ihd_debug=1</code> وراقب Console.
+          إعلانات سناب شات بدون UTM تُنسب لسناب شات من متصفح التطبيق، لكن بدون اسم الحملة؛ أضف UTM للإعلان لمعرفة الحملة.
         </p>
       </div>
     </SectionCard>

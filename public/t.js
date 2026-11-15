@@ -183,9 +183,20 @@
     };
   }
 
+  /* Fallback when the theme pushes no purchase event: an order number in the
+     thank-you page address still links the donation to its ad source (no amount). */
+  function thankYouFallback() {
+    if (!/thank|success|order|checkout/i.test(location.pathname)) return;
+    var ref = params.get("order_id") || params.get("order") || params.get("reference_id") || params.get("ref");
+    var m = !ref && location.pathname.match(/(?:orders?|thank-?you|success)\/(\d{5,})/i);
+    if (m) ref = m[1];
+    if (ref) setTimeout(function () { reportPurchase({ order_id: ref }, "thank-you-url"); }, 3000);
+  }
+
   captureTouch();
   trackVisit();
   watchDataLayer();
+  thankYouFallback();
   flushQueue();
   log("loaded", { base: BASE, vid: vid, sid: sid, touch: currentTouch() });
 })();

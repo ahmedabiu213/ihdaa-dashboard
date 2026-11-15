@@ -52,15 +52,36 @@ Adding or changing a variable later needs **Deployments → Redeploy**.
 
 After each connection the card shows the last sync and any error text from the platform.
 
-## 4. Store tracking (15 min, before the first ad goes live)
+## 4. Store tracking with Google Tag Manager (new account, ~20 min)
 
-1. Google Tag Manager → new **Custom HTML** tag, trigger **All Pages**, paste the line from the
-   **سكربت التتبع في المتجر** card. Publish.
-2. Existing TikTok and Snapchat ads need no changes: their own auto-added UTMs and click IDs are
-   captured as-is and matched to campaigns by ID or name. Use **روابط UTM** for WhatsApp/SMS links,
-   or when you want ad- and project-level matching.
-3. Test: open an ad's link (or any store link) with `&ihd_debug=1` added, make a 1 SAR donation, and check that it
-   appears in **التبرعات** with the right channel. The browser console shows `[ihdaa]` lines.
+The tracker needs the dashboard to be deployed first (it is served from `ihdaa-dashboard.vercel.app/t.js`).
+
+**A. Create the Tag Manager container**
+1. Go to tagmanager.google.com with the Google account the organization will own → **Create Account**.
+2. Account name: `Ihdaa`, country: Saudi Arabia. Container name: `store-ihdaa.org.sa`, target platform: **Web** → Create, accept the terms.
+3. Copy the container ID at the top (`GTM-XXXXXXX`). Close the "Install Google Tag Manager" code window: Salla installs it for you.
+
+**B. Connect it to Salla**
+1. In the Salla dashboard, search for **Google Tag Manager** (it is listed with the store's marketing/service integrations).
+2. Paste the `GTM-XXXXXXX` ID and save. Salla now loads the container on every store page.
+
+**C. Add the dashboard tracker**
+1. Tag Manager → **Tags → New → Tag Configuration → Custom HTML**, paste:
+   `<script src="https://ihdaa-dashboard.vercel.app/t.js" async></script>`
+2. **Triggering → All Pages**. Name it `Ihdaa dashboard tracker` → **Save**.
+3. **Submit → Publish**. Nothing runs until the container is published.
+
+**D. Test**
+1. In Tag Manager click **Preview**, enter `https://store-ihdaa.org.sa/ar` and check that "Ihdaa dashboard tracker" fired.
+2. Open the store with `?ihd_debug=1` (or one of your TikTok/Snapchat ad links with `&ihd_debug=1`),
+   press F12 → Console: `[ihdaa] loaded` and `[ihdaa] touch saved` appear.
+3. Make a 1 SAR donation. The thank-you page should log `[ihdaa] purchase … delivered`.
+   Within a minute it appears in **التبرعات** with its channel, and visits appear on the overview.
+4. If no purchase line appears, send the console output: debug mode prints every event the store sends.
+
+Existing TikTok and Snapchat ads need no changes: their own auto-added UTMs and click IDs are captured
+as-is and matched to campaigns by ID or name. Use **روابط UTM** for WhatsApp/SMS links.
+Keep the Snapchat/TikTok pixels you already connected in Salla; they are separate from this tracker.
 
 ## 5. Verified orders from Salla (choose one)
 

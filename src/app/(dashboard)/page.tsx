@@ -12,23 +12,33 @@ import { parseFilters } from "@/lib/queries/filters";
 import { getChannelBreakdown, getDailySeries, getOverviewTotals, getRecentDonations } from "@/lib/queries/overview";
 import { getChannelDaily } from "@/lib/queries/channels";
 import { ChannelTrendsCard } from "@/components/channels/channel-trends";
+import { VisitsCard } from "@/components/overview/visits-card";
+import { getDailyVisits, getProductVisits, getVisitTotals } from "@/lib/queries/visits";
 
 async function Overview({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   // Always render per request: "today" in Riyadh and the data are never baked in at build.
   await connection();
   const filters = parseFilters(await searchParams);
   if (!isDatabaseConfigured()) return <SetupNotice />;
-  const [{ current, previous }, daily, channels, channelDaily, recent] = await Promise.all([
+  const [{ current, previous }, daily, channels, channelDaily, recent, visits, dailyVisits, productVisits] = await Promise.all([
     getOverviewTotals(filters),
     getDailySeries(filters),
     getChannelBreakdown(filters),
     getChannelDaily(filters),
     getRecentDonations(filters),
+    getVisitTotals(filters),
+    getDailyVisits(filters),
+    getProductVisits(filters, 8),
   ]);
   return (
     <>
       <OverviewCard range={filters.range} totals={current} previous={previous} daily={daily} />
       <RevenueVsSpendCard daily={daily} />
+      <VisitsCard
+        range={filters.range} totals={visits.current} previous={visits.previous}
+        donations={current.donations} previousDonations={previous.donations}
+        daily={dailyVisits} products={productVisits}
+      />
       <ChannelTableCard rows={channels} />
       <ChannelTrendsCard range={filters.range} daily={channelDaily} />
       <RecentDonationsCard rows={recent} />

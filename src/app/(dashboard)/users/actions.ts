@@ -7,7 +7,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 export type UserFormState = { ok?: string; error?: string };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD = 10;
+const MIN_PASSWORD = 8;
 
 async function requireAdmin() {
   const me = await getCurrentUser();

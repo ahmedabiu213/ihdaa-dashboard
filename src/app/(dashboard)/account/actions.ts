@@ -11,7 +11,7 @@ export async function changePassword(_prev: PwState, form: FormData): Promise<Pw
   if (!data.user) return { error: "سجّل الدخول أولًا." };
   const password = String(form.get("password") ?? "");
   const confirm = String(form.get("confirm") ?? "");
-  if (password.length < 10) return { error: "كلمة المرور يجب أن تكون 10 أحرف على الأقل." };
+  if (password.length < 8) return { error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل." };
   if (password !== confirm) return { error: "كلمتا المرور غير متطابقتين." };
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: error.message };

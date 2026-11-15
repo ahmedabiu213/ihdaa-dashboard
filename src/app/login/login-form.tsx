@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { login, type LoginState } from "./actions";
 
@@ -19,7 +20,7 @@ export function LoginForm() {
       </div>
       <div className="grid gap-2">
         <Label htmlFor="password">كلمة المرور</Label>
-        <Input id="password" name="password" type="password" dir="ltr" autoComplete="current-password" required />
+        <PasswordInput id="password" name="password" autoComplete="current-password" required />
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-full">

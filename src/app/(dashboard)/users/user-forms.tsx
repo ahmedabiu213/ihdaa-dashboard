@@ -4,6 +4,7 @@ import { useActionState, useRef, useTransition } from "react";
 import { KeyRound, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -41,7 +42,7 @@ export function CreateUserForm() {
     <form ref={formRef} action={action} className="grid gap-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="grid gap-1.5"><Label htmlFor="new-email">البريد الإلكتروني</Label><Input id="new-email" name="email" type="email" dir="ltr" autoComplete="off" required /></div>
-        <div className="grid gap-1.5"><Label htmlFor="new-password">كلمة المرور (10 أحرف على الأقل)</Label><Input id="new-password" name="password" type="password" dir="ltr" autoComplete="new-password" minLength={10} required /></div>
+        <div className="grid gap-1.5"><Label htmlFor="new-password">كلمة المرور (8 أحرف على الأقل)</Label><PasswordInput id="new-password" name="password" autoComplete="new-password" minLength={8} required /></div>
         <div className="grid gap-1.5"><Label>الصلاحية</Label><RoleSelect /></div>
       </div>
       <div><Button type="submit" disabled={pending}><UserPlus />{pending ? "جارٍ الإنشاء…" : "إنشاء الحساب"}</Button></div>
@@ -81,7 +82,7 @@ export function PasswordDialog({ id, email }: { id: string; email: string }) {
         </DialogHeader>
         <form action={action} className="grid gap-3">
           <input type="hidden" name="id" value={id} />
-          <div className="grid gap-1.5"><Label htmlFor={`pw-${id}`}>كلمة المرور الجديدة</Label><Input id={`pw-${id}`} name="password" type="password" dir="ltr" minLength={10} autoComplete="new-password" required /></div>
+          <div className="grid gap-1.5"><Label htmlFor={`pw-${id}`}>كلمة المرور الجديدة</Label><PasswordInput id={`pw-${id}`} name="password" minLength={8} autoComplete="new-password" required /></div>
           <Result state={state} />
           <DialogFooter><Button type="submit" disabled={pending}>{pending ? "جارٍ الحفظ…" : "حفظ"}</Button></DialogFooter>
         </form>

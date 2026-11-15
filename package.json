@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "test": "tsx src/lib/utm.test.ts"
+    "test": "tsx src/lib/utm.test.ts && tsx src/lib/orders/normalize.test.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

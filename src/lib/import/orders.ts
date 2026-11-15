@@ -25,6 +25,9 @@ const ALIASES = {
 
 /** Salla's Arabic/English status names → status slugs used by countsAsRevenue(). */
 const STATUS_MAP: Array<[RegExp, string]> = [
+  [/محذوف|deleted/i, "deleted"],
+  [/عرض سعر|quote/i, "request_quote"],
+  [/قيد الاسترجاع|restoring/i, "restoring"],
   [/بانتظار الدفع|awaiting payment|payment.?pending|pending payment/i, "payment_pending"],
   [/ملغ|cancel/i, "canceled"],
   [/مسترجع|استرجاع|restor|refund/i, "restored"],
@@ -38,7 +41,8 @@ const STATUS_MAP: Array<[RegExp, string]> = [
 
 function statusSlug(v: string | undefined) {
   if (!v?.trim()) return null;
-  for (const [re, slug] of STATUS_MAP) if (re.test(v)) return slug;
+  const norm = v.replace(/[إأآ]/g, "ا"); // Salla writes "بإنتظار" and "الإسترجاع"
+  for (const [re, slug] of STATUS_MAP) if (re.test(norm)) return slug;
   return v.trim().toLowerCase();
 }
 

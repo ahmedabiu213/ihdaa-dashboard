@@ -32,6 +32,7 @@ export type NormalizedOrder = {
 export const NON_REVENUE_STATUSES = new Set([
   "payment_pending", "pending", "awaiting_payment",
   "canceled", "cancelled", "restoring", "restored", "refunded", "failed",
+  "deleted", "request_quote", // seen in this store's status list
 ]);
 
 export function countsAsRevenue(status: string | null) {

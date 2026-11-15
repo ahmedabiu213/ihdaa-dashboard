@@ -10,16 +10,19 @@ import {
 import { isDatabaseConfigured } from "@/db";
 import { parseFilters } from "@/lib/queries/filters";
 import { getChannelBreakdown, getDailySeries, getOverviewTotals, getRecentDonations } from "@/lib/queries/overview";
+import { getChannelDaily } from "@/lib/queries/channels";
+import { ChannelTrendsCard } from "@/components/channels/channel-trends";
 
 async function Overview({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   // Always render per request: "today" in Riyadh and the data are never baked in at build.
   await connection();
   const filters = parseFilters(await searchParams);
   if (!isDatabaseConfigured()) return <SetupNotice />;
-  const [{ current, previous }, daily, channels, recent] = await Promise.all([
+  const [{ current, previous }, daily, channels, channelDaily, recent] = await Promise.all([
     getOverviewTotals(filters),
     getDailySeries(filters),
     getChannelBreakdown(filters),
+    getChannelDaily(filters),
     getRecentDonations(filters),
   ]);
   return (
@@ -27,6 +30,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
       <OverviewCard range={filters.range} totals={current} previous={previous} daily={daily} />
       <RevenueVsSpendCard daily={daily} />
       <ChannelTableCard rows={channels} />
+      <ChannelTrendsCard range={filters.range} daily={channelDaily} />
       <RecentDonationsCard rows={recent} />
     </>
   );

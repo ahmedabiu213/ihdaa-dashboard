@@ -71,6 +71,17 @@ export function normalizeSallaOrder(body: unknown, source: OrderSource): Normali
     };
   });
 
+  // Salla's order list sends items without amounts: split the total by quantity.
+  const orderTotalSar = toSar(total.amount, currency);
+  if (items.length > 0 && orderTotalSar > 0 && items.every((i) => i.totalSar === 0)) {
+    const qty = items.reduce((n, i) => n + i.quantity, 0);
+    let left = orderTotalSar;
+    items.forEach((i, idx) => {
+      i.totalSar = idx === items.length - 1 ? Math.round(left * 100) / 100 : Math.round((orderTotalSar * i.quantity / qty) * 100) / 100;
+      left -= i.totalSar;
+    });
+  }
+
   const paymentMethod = str(order.payment_method) ?? str(obj(order.payment_method).name);
 
   return {

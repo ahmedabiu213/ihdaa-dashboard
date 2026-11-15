@@ -31,7 +31,13 @@ export function getDb(): DB {
         "the password contains @ # / ? % : and is not URL-encoded, or the value has quotes or spaces around it.",
     );
   }
-  const client = postgres(url, { prepare: false, max: 3, idle_timeout: 20 });
+  const client = postgres(url, { prepare: false, max: 3, idle_timeout: 20, connect_timeout: 10 });
+  // postgres.js sends parameterless queries with the "simple" protocol and the rest with the
+  // "extended" one. Mixing both on one pipelined connection stalls Supabase's transaction-mode
+  // pooler (Supavisor), so every query goes through the extended protocol.
+  const unsafe = client.unsafe.bind(client);
+  client.unsafe = ((query: string, params?: unknown[], options?: Record<string, unknown>) =>
+    unsafe(query, params as never, { ...options, simple: false } as never)) as typeof client.unsafe;
   globalThis.__db = drizzle({ client, schema });
   return globalThis.__db;
 }

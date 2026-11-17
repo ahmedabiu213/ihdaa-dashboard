@@ -30,7 +30,19 @@ export async function upsertOrder(n: NormalizedOrder): Promise<UpsertResult> {
       eq(orders.referenceId, k),
       ...(/^\d{1,15}$/.test(k) ? [eq(orders.sallaId, Number(k))] : []),
     ]);
-    const existing = await tx.select().from(orders).where(or(...matchers)).for("update");
+    let existing = await tx.select().from(orders).where(or(...matchers)).for("update");
+
+    // Verified data with only Salla's internal id (an invoice) can't match the order number the
+    // store script reported. Merge it into that unverified report instead of counting it twice:
+    // same amount, placed within 2 hours before to 30 minutes after.
+    if (existing.length === 0 && verified && n.referenceId == null && n.sallaId != null && n.totalSar > 0) {
+      const from = new Date(n.orderedAt.getTime() - 2 * 3600_000);
+      const to = new Date(n.orderedAt.getTime() + 30 * 60_000);
+      existing = await tx.select().from(orders)
+        .where(sql`${orders.verified} = false and ${orders.sallaId} is null and ${orders.totalSar} = ${n.totalSar.toFixed(2)}
+          and ${orders.orderedAt} between ${from.toISOString()}::timestamptz and ${to.toISOString()}::timestamptz`)
+        .orderBy(sql`abs(extract(epoch from ${orders.orderedAt} - ${n.orderedAt.toISOString()}::timestamptz))`).limit(1).for("update");
+    }
 
     // Two rows can match when the browser created one by reference and Salla
     // later sends id+reference that another row holds. Keep the verified/oldest one.

@@ -1,6 +1,7 @@
 import { getDb, schema } from "@/db";
 import { authHeaderSummary, hasSecret, json, providedSecrets } from "@/lib/http";
 import { ingestSallaPayload } from "@/lib/orders/ingest";
+import { invoiceToOrder } from "@/lib/orders/invoice";
 
 /**
  * Verified order intake for Salla order JSON (Make.com, or anything holding the secret).
@@ -69,6 +70,18 @@ export async function POST(req: Request) {
   const event = !Array.isArray(body) && "event" in body ? String((body as { event: unknown }).event) : null;
   // Non-order events (e.g. payment events from Salla's store webhooks) may carry a payment id
   // where an order id is expected: keep them for inspection instead of creating a wrong order.
+  // «انشاء فاتورة طلب»: the only order event Salla's store webhooks expose right now.
+  if (event === "invoice.created") {
+    const { order, creditNote } = invoiceToOrder(body);
+    try {
+      const results = await ingestSallaPayload({ ...(body as object), data: order }, "salla_webhook", event, creditNote ? "restored" : null);
+      return json({ ok: true, results });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "failed";
+      if (message.startsWith("partial order event")) return json({ ok: false, note: message });
+      return json({ error: message }, 422);
+    }
+  }
   if (event && !event.startsWith("order.")) {
     try {
       await getDb().insert(schema.webhookEvents).values({ source: "make", event, payload: body as object, processed: false, error: "not an order event (saved for review)" });

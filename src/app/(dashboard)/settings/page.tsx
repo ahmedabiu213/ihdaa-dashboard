@@ -156,7 +156,7 @@ async function OrdersCard() {
   const status = !configured ? "off" : lastOk && last === lastOk ? "connected" : last ? "error" : "off";
   return (
     <SectionCard
-      title="طلبات سلة عبر Make.com"
+      title="طلبات سلة (Webhook من سلة)"
       description="بيانات سلة الموثّقة: المبلغ والحالة والمشاريع"
       action={<Status status={status} />}
     >
@@ -185,7 +185,8 @@ async function OrdersCard() {
           </div>
         )}
         <ol className="grid list-decimal gap-1.5 ps-5 text-muted-foreground">
-          <li>في Make: المشغّل <b>Salla → Watch Order Created</b>، ثم <b>HTTP → Make a request</b> بطريقة POST إلى الرابط أدناه.</li>
+          <li>في سلة: إعدادات المتجر ← الإعدادات المتقدمة ← Webhooks ← إضافة: الحدث <b>«انشاء فاتورة طلب»</b>، الإصدار V2، والرابط أدناه مع <code dir="ltr">?key=ORDERS_INGEST_SECRET</code>.</li>
+          <li>أو في Make: المشغّل <b>Salla → Watch Order Created</b>، ثم <b>HTTP → Make a request</b> بطريقة POST إلى الرابط أدناه.</li>
           <li>المفتاح (ORDERS_INGEST_SECRET) في ترويسة <code dir="ltr">x-api-key</code> أو <code dir="ltr">Authorization</code>، أو في الرابط <code dir="ltr">?key=</code>.</li>
           <li>جسم الطلب: بيانات الطلب من سلة بصيغة JSON (Data كاملة أو الطلب نفسه).</li>
           <li>فعّل السيناريو (ON). زر Run once للتجربة فقط.</li>

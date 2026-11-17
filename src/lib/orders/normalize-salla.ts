@@ -36,6 +36,10 @@ function parseSallaDate(v: unknown): Date | null {
   const raw = str(o.date) ?? str(v);
   if (!raw) return null;
   if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)) return new Date(raw);
+  // Plain date (invoices): noon Riyadh, so it lands on the right day.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return new Date(`${raw}T12:00:00+03:00`);
+  // Other textual dates, e.g. "Tue Nov 17 2026 00:15:51 GMT+0300".
+  if (!/^\d{4}-\d{2}-\d{2}[ T]\d/.test(raw)) { const d = new Date(raw); return Number.isNaN(d.getTime()) ? null : d; }
   const tz = str(o.timezone) ?? "Asia/Riyadh";
   const base = raw.replace(" ", "T").replace(/(\.\d{3})\d+$/, "$1");
   // Only Riyadh is expected; it has no DST, so a fixed offset is exact.

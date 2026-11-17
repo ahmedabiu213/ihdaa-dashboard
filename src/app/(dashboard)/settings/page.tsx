@@ -323,17 +323,28 @@ function OtherPlatformsCard() {
 }
 
 function EnvCard() {
-  const { groups, problems } = envStatus();
+  const { groups, problems, deployment } = envStatus();
   const missing = groups.flatMap((g) => g.vars.filter((v) => !v.set && !v.optional));
   return (
     <SectionCard
       title="فحص الإعدادات"
-      description="متغيرات البيئة في Vercel (تُعرض الأسماء فقط، لا القيم)"
+      description={`متغيرات البيئة في Vercel (تُعرض الأسماء فقط، لا القيم)${deployment.env ? ` · البيئة: ${deployment.env}` : ""}${deployment.commit ? ` · النسخة ${deployment.commit}` : ""}`}
       action={<Status status={missing.length || problems.length ? "error" : "connected"} />}
       className="lg:col-span-2"
     >
       <div className="grid gap-3">
         {problems.map((p) => <p key={p} className="text-sm text-destructive">{p}</p>)}
+        {groups.flatMap((g) => g.vars).filter((v) => v.empty || v.nearMisses.length > 0).map((v) => (
+          <p key={v.name} className="text-sm text-destructive">
+            <code dir="ltr">{v.name}</code>{" "}
+            {v.empty
+              ? "موجود لكن قيمته فارغة. ضع القيمة في خانة Value."
+              : <>غير موجود بهذا الاسم بالضبط، لكن يوجد اسم مشابه: <code dir="ltr">{v.nearMisses.join("، ")}</code>. احذفه وأضفه من جديد بالاسم الصحيح (بدون مسافات)، ثم Redeploy.</>}
+          </p>
+        ))}
+        {deployment.env && deployment.env !== "production" && (
+          <p className="text-sm text-destructive">هذه نسخة {deployment.env} وليست Production: متغيرات Production لا تظهر هنا.</p>
+        )}
         <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
           {groups.map((g) => (
             <div key={g.title} className="grid content-start gap-1">

@@ -10,7 +10,7 @@ import {
 import { isDatabaseConfigured } from "@/db";
 import { canSeeSpend } from "@/lib/roles";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { redactChannelDaily, redactChannels, redactDaily, redactTotals } from "@/lib/queries/redact";
+import { redactChannelDaily, redactChannels, redactDaily, redactRecent, redactTotals } from "@/lib/queries/redact";
 import { parseFilters } from "@/lib/queries/filters";
 import { getChannelBreakdown, getDailySeries, getOverviewTotals, getRecentDonations } from "@/lib/queries/overview";
 import { getChannelDaily } from "@/lib/queries/channels";
@@ -46,7 +46,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         />
         <ChannelTableCard rows={redactChannels(channels)} showSpend={false} />
         <ChannelTrendsCard range={filters.range} daily={redactChannelDaily(channelDaily)} showSpend={false} />
-        <RecentDonationsCard rows={recent} />
+        <RecentDonationsCard rows={redactRecent(recent)} showCampaign={false} />
       </>
     );
   }

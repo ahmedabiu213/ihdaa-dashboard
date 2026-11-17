@@ -1,4 +1,4 @@
-import type { ChannelRow, DailyPoint, Totals } from "./overview";
+import type { ChannelRow, DailyPoint, RecentDonation, Totals } from "./overview";
 import type { ChannelDaily } from "./channels";
 
 /**
@@ -15,3 +15,8 @@ export const redactChannels = (rows: ChannelRow[]): ChannelRow[] =>
 export const redactChannelDaily = (rows: ChannelDaily[]): ChannelDaily[] =>
   rows.map((c) => ({ ...c, points: c.points.map((p) => ({ ...p, spend: 0 })) }))
     .filter((c) => c.points.some((p) => p.revenue > 0));
+
+/** Viewers don't see campaign names either. */
+export const redactRecent = (rows: RecentDonation[]): RecentDonation[] => rows.map((r) => ({ ...r, campaign: null }));
+export const redactCampaigns = <T extends { campaign: string | null; utmCampaign: string | null }>(rows: T[]): T[] =>
+  rows.map((r) => ({ ...r, campaign: null, utmCampaign: null }));

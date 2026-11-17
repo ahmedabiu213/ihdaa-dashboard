@@ -221,7 +221,7 @@ export function ChannelTableCard({ rows, showSpend = true }: { rows: ChannelRow[
   );
 }
 
-export function RecentDonationsCard({ rows }: { rows: RecentDonation[] }) {
+export function RecentDonationsCard({ rows, showCampaign = true }: { rows: RecentDonation[]; showCampaign?: boolean }) {
   return (
     <SectionCard title="أحدث التبرعات" description="آخر التبرعات المدفوعة ومصدرها" contentClassName="px-0">
       {rows.length === 0 ? (
@@ -233,7 +233,7 @@ export function RecentDonationsCard({ rows }: { rows: RecentDonation[] }) {
               <TableHead className="ps-6">رقم الطلب</TableHead>
               <TableHead>المشروع</TableHead>
               <TableHead>القناة</TableHead>
-              <TableHead>الحملة</TableHead>
+              {showCampaign && <TableHead>الحملة</TableHead>}
               <TableHead className="text-end">المبلغ</TableHead>
               <TableHead className="pe-6 text-end">الوقت</TableHead>
             </TableRow>
@@ -244,7 +244,7 @@ export function RecentDonationsCard({ rows }: { rows: RecentDonation[] }) {
                 <TableCell className="ps-6 tabular" dir="ltr">{r.reference ?? r.id}</TableCell>
                 <TableCell className="max-w-56 truncate">{r.project ?? "—"}</TableCell>
                 <TableCell><ChannelName channel={r.channel} /></TableCell>
-                <TableCell className="max-w-40 truncate text-muted-foreground">{r.campaign ?? "—"}</TableCell>
+                {showCampaign && <TableCell className="max-w-40 truncate text-muted-foreground">{r.campaign ?? "—"}</TableCell>}
                 <TableCell className="text-end font-medium tabular">{formatSar(r.total)}</TableCell>
                 <TableCell className="pe-6 text-end text-muted-foreground tabular">{formatDateTime(r.orderedAt)}</TableCell>
               </TableRow>

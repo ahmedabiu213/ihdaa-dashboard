@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/supabase/server";
 /** The sidebar depends on the signed-in user's role (viewers see donation pages only). */
 async function SidebarForUser() {
   const user = await getCurrentUser();
-  return <AppSidebar role={user?.role ?? null} footer={<UserMenu user={user} />} />;
+  return <AppSidebar role={user?.role ?? null} footer={<UserMenu user={user ? { email: user.email, role: user.role } : null} />} />;
 }
 
 export default function DashboardLayout({ children }: LayoutProps<"/">) {

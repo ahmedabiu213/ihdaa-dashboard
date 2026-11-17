@@ -1,10 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import { KeyRound, LogOut } from "lucide-react";
-import type { CurrentUser } from "@/lib/supabase/server";
-import { logout } from "@/app/login/actions";
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import type { Role } from "@/lib/roles";
 
-export function UserMenu({ user }: { user: CurrentUser | null }) {
+type MenuUser = { email: string; role: Role } | null;
+import { logout } from "@/app/login/actions";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
+
+export function UserMenu({ user }: { user: MenuUser }) {
+  const { isMobile, setOpenMobile } = useSidebar();
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -12,7 +17,7 @@ export function UserMenu({ user }: { user: CurrentUser | null }) {
           {user?.email}
         </div>
         <SidebarMenuButton asChild tooltip="حسابي">
-          <Link href="/account"><KeyRound /><span>حسابي</span></Link>
+          <Link href="/account" onClick={() => { if (isMobile) setOpenMobile(false); }}><KeyRound /><span>حسابي</span></Link>
         </SidebarMenuButton>
         <form action={logout}>
           <SidebarMenuButton type="submit" tooltip="تسجيل الخروج">

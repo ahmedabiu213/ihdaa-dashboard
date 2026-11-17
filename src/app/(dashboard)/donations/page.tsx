@@ -15,6 +15,7 @@ import { rangeLabel } from "@/components/overview/overview-sections";
 import { isDatabaseConfigured } from "@/db";
 import { canSeeSpend } from "@/lib/roles";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { redactCampaigns } from "@/lib/queries/redact";
 import { formatDateTime } from "@/lib/dates";
 import { formatInt, formatSar } from "@/lib/format";
 import { parseFilters } from "@/lib/queries/filters";
@@ -35,8 +36,10 @@ async function Content({ searchParams }: { searchParams: PageProps<"/donations">
   if (!isDatabaseConfigured()) return <SetupNotice />;
   const f = donationFilters(sp, parseFilters(sp));
   const page = Math.max(1, Number(Array.isArray(sp.page) ? sp.page[0] : sp.page) || 1);
-  const [user, { rows, total, revenue }] = await Promise.all([getCurrentUser(), listDonations(f, page, PAGE_SIZE)]);
+  const [user, list] = await Promise.all([getCurrentUser(), listDonations(f, page, PAGE_SIZE)]);
   const staff = !!user && canSeeSpend(user.role);
+  const { total, revenue } = list;
+  const rows = staff ? list.rows : redactCampaigns(list.rows);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageHref = (p: number) => {
     const next = new URLSearchParams(Object.entries(sp).flatMap(([k, v]) => (v == null ? [] : (Array.isArray(v) ? v : [v]).map((x) => [k, x]))));
@@ -55,7 +58,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/donations">
           <Table>
             <TableHeader><TableRow>
               <TableHead className="ps-6">رقم الطلب</TableHead><TableHead>الوقت</TableHead><TableHead>المشروع</TableHead>
-              <TableHead>القناة</TableHead><TableHead>الحملة</TableHead><TableHead>الحالة</TableHead>
+              <TableHead>القناة</TableHead>{staff && <TableHead>الحملة</TableHead>}<TableHead>الحالة</TableHead>
               <TableHead>المصدر</TableHead><TableHead className="pe-6 text-end">المبلغ</TableHead>
             </TableRow></TableHeader>
             <TableBody>
@@ -65,7 +68,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/donations">
                   <TableCell className="whitespace-nowrap tabular">{formatDateTime(r.orderedAt)}</TableCell>
                   <TableCell className="max-w-56 truncate">{r.projects ?? "—"}</TableCell>
                   <TableCell><ChannelName channel={r.channel} /></TableCell>
-                  <TableCell className="max-w-40 truncate text-muted-foreground">{r.campaign ?? r.utmCampaign ?? "—"}</TableCell>
+                  {staff && <TableCell className="max-w-40 truncate text-muted-foreground">{r.campaign ?? r.utmCampaign ?? "—"}</TableCell>}
                   <TableCell>
                     <Badge variant={r.countsAsRevenue ? "secondary" : "outline"}>{r.status ? (STATUS[r.status] ?? r.status) : "مدفوع"}</Badge>
                   </TableCell>

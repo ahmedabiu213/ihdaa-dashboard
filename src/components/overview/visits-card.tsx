@@ -30,7 +30,9 @@ export function VisitsCard({
   const prevConv = previous.sessions ? previousDonations / previous.sessions : null;
   return (
     <SectionCard title="الزيارات" description={rangeLabel(range)}>
-      <div className="grid gap-6">
+      {/* min-w-0 on each level lets the projects table scroll sideways on phones
+          instead of stretching the card past the screen. */}
+      <div className="grid min-w-0 gap-6">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="الزيارات" tip="عدد الجلسات: كل زيارة للمتجر تُحسب مرة حتى لو تصفح الزائر عدة صفحات."
             value={formatInt(totals.sessions)} delta={<Delta current={totals.sessions} previous={previous.sessions} />} />
@@ -43,13 +45,13 @@ export function VisitsCard({
         </div>
         <TrendChart data={daily} unit="count" height={180}
           series={[{ key: "sessions", label: "الزيارات", color: "var(--chart-1)" }]} />
-        <div className="grid gap-2">
+        <div className="grid min-w-0 gap-2">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">زيارات المشاريع</h3>
             <Link href="/projects" className="text-xs text-primary hover:underline">كل المشاريع</Link>
           </div>
           {products.length === 0 ? <EmptyHint>لا توجد زيارات لصفحات المشاريع في هذه الفترة.</EmptyHint> : (
-            <div className="-mx-6">
+            <div className="-mx-6 min-w-0">
               <Table>
                 <TableHeader><TableRow>
                   <TableHead className="ps-6">المشروع</TableHead>
@@ -61,7 +63,7 @@ export function VisitsCard({
                 <TableBody>
                   {products.map((p) => (
                     <TableRow key={p.productId}>
-                      <TableCell className="max-w-72 truncate ps-6 font-medium">{p.name}</TableCell>
+                      <TableCell className="max-w-72 min-w-40 truncate ps-6 font-medium">{p.name}</TableCell>
                       <TableCell className="text-end tabular">{formatInt(p.sessions)}</TableCell>
                       <TableCell className="text-end tabular">{formatInt(p.donations)}</TableCell>
                       <TableCell className="text-end tabular">{formatSar(p.revenue)}</TableCell>

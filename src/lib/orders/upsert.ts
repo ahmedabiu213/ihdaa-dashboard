@@ -60,10 +60,23 @@ export async function upsertOrder(n: NormalizedOrder): Promise<UpsertResult> {
 
     let orderId: number;
     let action: UpsertResult["action"];
+    if (!keep && n.hasAmount === false) {
+      throw new Error("partial order event (no amount) for an order not seen yet: saved, not counted");
+    }
     if (!keep) {
       const [row] = await tx.insert(orders).values(values).returning({ id: orders.id });
       orderId = row.id;
       action = "created";
+    } else if (n.hasAmount === false) {
+      // Partial event (status change, payment update, cancel/delete) with no amount:
+      // update the status only; keep amount, items and time.
+      const status = values.status ?? keep.status;
+      await tx.update(orders).set({
+        status, countsAsRevenue: countsAsRevenue(status), verified: keep.verified || verified,
+        sallaId: keep.sallaId ?? n.sallaId, referenceId: keep.referenceId ?? n.referenceId, updatedAt: new Date(),
+      }).where(eq(orders.id, keep.id));
+      orderId = keep.id;
+      action = "updated";
     } else if (n.source === "import" && keep.verified && keep.source !== "import") {
       // A CSV export is less detailed than Salla's own JSON (Make / webhook):
       // only take its status and amount, keep the richer items and ids.

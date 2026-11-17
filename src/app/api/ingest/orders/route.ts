@@ -75,10 +75,15 @@ export async function POST(req: Request) {
     } catch { /* ignore */ }
     return json({ ok: true, ignored: event });
   }
+  // Deleted, cancelled and refunded orders stop counting, whatever their payload holds.
+  const forcedStatus = event === "order.deleted" ? "deleted" : event === "order.cancelled" ? "canceled" : event === "order.refunded" ? "restored" : null;
   try {
-    const results = await ingestSallaPayload(body, "make", event);
+    const results = await ingestSallaPayload(body, "make", event, forcedStatus);
     return json({ ok: true, results });
   } catch (e) {
-    return json({ error: e instanceof Error ? e.message : "failed" }, 422);
+    const message = e instanceof Error ? e.message : "failed";
+    // Saved for review; answer 200 so the sender doesn't retry forever.
+    if (message.startsWith("partial order event")) return json({ ok: false, note: message });
+    return json({ error: message }, 422);
   }
 }

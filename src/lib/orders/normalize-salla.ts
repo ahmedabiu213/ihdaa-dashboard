@@ -44,9 +44,16 @@ function parseSallaDate(v: unknown): Date | null {
 
 export function normalizeSallaOrder(body: unknown, source: OrderSource): NormalizedOrder {
   const envelope = obj(body);
-  const order = envelope.data && typeof envelope.data === "object" && !Array.isArray(envelope.data)
+  let order = envelope.data && typeof envelope.data === "object" && !Array.isArray(envelope.data)
     ? obj(envelope.data)
     : envelope;
+  // Some events wrap the order: { data: { order: {...}, status: ... } }.
+  if (order.order && typeof order.order === "object" && !Array.isArray(order.order)) {
+    const inner = obj(order.order);
+    order = { ...inner, status: inner.status ?? order.status };
+  }
+  // Partial events carry the order id as order_id.
+  if (order.id == null && order.order_id != null) order = { ...order, id: order.order_id };
 
   const amounts = obj(order.amounts);
   const total = money(amounts.total ?? order.total);
@@ -95,5 +102,6 @@ export function normalizeSallaOrder(body: unknown, source: OrderSource): Normali
     items,
     source,
     raw: body,
+    hasAmount: (total.amount || 0) > 0 || items.some((i) => i.totalSar > 0),
   };
 }

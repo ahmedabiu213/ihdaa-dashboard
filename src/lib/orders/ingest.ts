@@ -6,7 +6,7 @@ import { upsertOrder, type UpsertResult } from "./upsert";
 import type { OrderSource } from "./types";
 
 /** Store the raw body first, then normalize and merge. Raw bodies allow re-processing after a parser fix. */
-export async function ingestSallaPayload(body: unknown, source: OrderSource, event: string | null) {
+export async function ingestSallaPayload(body: unknown, source: OrderSource, event: string | null, forcedStatus: string | null = null) {
   const db = getDb();
   const [ev] = await db.insert(schema.webhookEvents)
     .values({ source, event, payload: body as object })
@@ -14,7 +14,11 @@ export async function ingestSallaPayload(body: unknown, source: OrderSource, eve
   try {
     const list = Array.isArray(body) ? body : [body];
     const results: UpsertResult[] = [];
-    for (const item of list) results.push(await upsertOrder(normalizeSallaOrder(item, source)));
+    for (const item of list) {
+      const n = normalizeSallaOrder(item, source);
+      if (forcedStatus) { n.status = forcedStatus; n.hasAmount = false; }
+      results.push(await upsertOrder(n));
+    }
     await db.update(schema.webhookEvents).set({ processed: true }).where(eq(schema.webhookEvents.id, ev.id));
     return results;
   } catch (e) {

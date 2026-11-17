@@ -22,6 +22,8 @@ export type NormalizedOrder = {
   items: NormalizedItem[];
   source: OrderSource;
   raw: unknown;
+  /** False for partial events (status change, delete) that carry no amount: never overwrite money with 0. */
+  hasAmount?: boolean;
 };
 
 /**

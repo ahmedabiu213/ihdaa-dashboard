@@ -2,6 +2,7 @@ import { getDb, schema } from "@/db";
 import { authHeaderSummary, hasSecret, json, providedSecrets } from "@/lib/http";
 import { ingestSallaPayload } from "@/lib/orders/ingest";
 import { invoiceToOrder } from "@/lib/orders/invoice";
+import { getSecret } from "@/lib/config/secrets";
 
 /**
  * Verified order intake for Salla order JSON (Make.com, or anything holding the secret).
@@ -45,7 +46,8 @@ function parseBody(text: string, contentType: string): unknown {
 }
 
 export async function POST(req: Request) {
-  const secret = process.env.ORDERS_INGEST_SECRET;
+  // Vercel variable first, then the database fallback (app_secrets).
+  const secret = (await getSecret("ORDERS_INGEST_SECRET").catch(() => ({ value: null }))).value;
   if (!secret) return json({ error: "ORDERS_INGEST_SECRET is not set on the server" }, 503);
   if (!hasSecret(req, secret)) {
     const given = providedSecrets(req);

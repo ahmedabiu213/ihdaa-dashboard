@@ -36,6 +36,13 @@
       "when": 1794735463325,
       "tag": "0004_ua_app",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794897111344,
+      "tag": "0005_app_secrets",
+      "breakpoints": true
     }
   ]
 }

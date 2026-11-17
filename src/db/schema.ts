@@ -265,3 +265,14 @@ export const webhookEvents = pgTable("webhook_events", {
   error: text("error"),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Secrets kept in the database instead of the code (the repository is public), used as a
+ * fallback when the Vercel variable of the same name is missing. RLS is on with no
+ * policies, so only the server's direct database connection can read them.
+ */
+export const appSecrets = pgTable("app_secrets", {
+  name: text("name").primaryKey(), // same name as the environment variable, e.g. ORDERS_INGEST_SECRET
+  value: text("value").notNull(),
+  updatedAt: updatedAt(),
+});

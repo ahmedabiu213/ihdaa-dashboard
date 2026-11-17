@@ -19,6 +19,7 @@ import { snapchatConfig } from "@/lib/snapchat/client";
 import { tiktokConfig } from "@/lib/tiktok/client";
 import { googleAdsScript } from "@/lib/google/script";
 import { envStatus } from "@/lib/config/env-check";
+import { databaseSecretNames, getSecret } from "@/lib/config/secrets";
 import { disconnect } from "./actions";
 import { SyncForm } from "./sync-form";
 
@@ -172,15 +173,15 @@ const REJECT_HELP: Record<string, string> = {
 };
 
 async function OrdersCard() {
-  const r = await load(() => getDb().select({
+  const r = await load(() => Promise.all([getSecret("ORDERS_INGEST_SECRET"), getDb().select({
     at: schema.webhookEvents.receivedAt, event: schema.webhookEvents.event, processed: schema.webhookEvents.processed,
     error: schema.webhookEvents.error, payload: schema.webhookEvents.payload,
-  }).from(schema.webhookEvents).orderBy(desc(schema.webhookEvents.receivedAt)).limit(6));
+  }).from(schema.webhookEvents).orderBy(desc(schema.webhookEvents.receivedAt)).limit(6)]));
   if (r.error !== undefined) return <FailedCard title="طلبات سلة (Webhook من سلة)" error={r.error} />;
-  const events = r.data;
+  const [secret, events] = r.data;
   const last = events[0];
   const lastOk = events.find((e) => e.processed);
-  const configured = !!process.env.ORDERS_INGEST_SECRET;
+  const configured = !!secret.value;
   const status = !configured ? "off" : lastOk && last === lastOk ? "connected" : last ? "error" : "off";
   return (
     <SectionCard
@@ -189,6 +190,7 @@ async function OrdersCard() {
       action={<Status status={status} />}
     >
       <div className="grid gap-3 text-sm">
+        <Row label="مفتاح الاستقبال">{secret.from === "env" ? "من Vercel" : secret.from === "database" ? "من قاعدة البيانات (احتياطي)" : "غير موجود"}</Row>
         <Row label="آخر طلب ناجح">{lastOk ? formatDateTime(lastOk.at) : "لم يصل طلب ناجح بعد"}</Row>
         {events.length > 0 && (
           <div className="grid gap-1.5">
@@ -322,9 +324,11 @@ function OtherPlatformsCard() {
   );
 }
 
-function EnvCard() {
-  const { groups, problems, deployment } = envStatus();
-  const missing = groups.flatMap((g) => g.vars.filter((v) => !v.set && !v.optional));
+function EnvCard({ fallbacks = [] }: { fallbacks?: string[] }) {
+  const { groups: raw, problems, deployment } = envStatus();
+  // A secret stored in the database counts as set: the app uses it when the variable is missing.
+  const groups = raw.map((g) => ({ ...g, vars: g.vars.map((v) => ({ ...v, fromDb: !v.set && fallbacks.includes(v.name) })) }));
+  const missing = groups.flatMap((g) => g.vars.filter((v) => !v.set && !v.fromDb && !v.optional));
   return (
     <SectionCard
       title="فحص الإعدادات"
@@ -351,8 +355,9 @@ function EnvCard() {
               <p className="text-xs font-medium text-muted-foreground">{g.title}</p>
               {g.vars.map((v) => (
                 <p key={v.name} className="flex min-w-0 items-center gap-1.5 text-xs" dir="ltr">
-                  {v.set ? <CheckCircle2 className="size-3.5 shrink-0 text-success" /> : v.optional ? <CircleDashed className="size-3.5 shrink-0 text-muted-foreground" /> : <CircleAlert className="size-3.5 shrink-0 text-destructive" />}
+                  {v.set || v.fromDb ? <CheckCircle2 className="size-3.5 shrink-0 text-success" /> : v.optional ? <CircleDashed className="size-3.5 shrink-0 text-muted-foreground" /> : <CircleAlert className="size-3.5 shrink-0 text-destructive" />}
                   <code className="min-w-0 break-all">{v.name}</code>
+                  {v.fromDb && <span className="text-muted-foreground" dir="rtl">(من قاعدة البيانات)</span>}
                 </p>
               ))}
             </div>
@@ -370,6 +375,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/settings">[
   await connection();
   const sp = await searchParams;
   if (!isDatabaseConfigured()) return <><div className="grid gap-4 lg:grid-cols-2"><EnvCard /></div><SetupNotice /></>;
+  const fallbacks = await load(databaseSecretNames);
   const key = Object.keys(FLASH).find((k) => { const [n, v] = k.split("="); return sp[n] === v; });
   const flash = key ? FLASH[key] : null;
   return (
@@ -380,7 +386,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/settings">[
         </div>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
-        <EnvCard />
+        <EnvCard fallbacks={fallbacks.data ?? []} />
         {platformDefs().map((d) => <Slot key={d.key}><PlatformCard def={d} /></Slot>)}
         <Slot><OrdersCard /></Slot>
         <Slot><TrackingCard /></Slot>

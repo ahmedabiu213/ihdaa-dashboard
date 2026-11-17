@@ -1,13 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/supabase/server";
+import { getStaffUser } from "@/lib/supabase/server";
 import { importSallaOrdersCsv } from "@/lib/import/orders";
 
 export type ImportState = { ok?: string; error?: string; details?: string[] };
 
 export async function importOrders(_prev: ImportState, form: FormData): Promise<ImportState> {
-  if (!(await getCurrentUser())) return { error: "سجّل الدخول أولًا." };
+  if (!(await getStaffUser())) return { error: "سجّل الدخول أولًا." };
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "اختر ملف CSV." };
   if (file.size > 10_000_000) return { error: "الملف أكبر من 10 ميجابايت." };

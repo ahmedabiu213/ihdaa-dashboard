@@ -50,8 +50,8 @@ function VerifiedShare({ revenue, verified }: { revenue: number; verified: numbe
 }
 
 export function OverviewCard({
-  range, totals, previous, daily,
-}: { range: DateRange; totals: Totals; previous: Totals; daily: DailyPoint[] }) {
+  range, totals, previous, daily, showSpend = true,
+}: { range: DateRange; totals: Totals; previous: Totals; daily: DailyPoint[]; showSpend?: boolean }) {
   return (
     <SectionCard
       title="نظرة عامة"
@@ -71,14 +71,16 @@ export function OverviewCard({
         >
           <TrendChart data={daily} series={[{ key: "revenue", label: "التبرعات", color: REVENUE_COLOR }]} />
         </Metric>
-        <Metric
-          label="الإنفاق الإعلاني"
-          tip="مجموع الإنفاق من كل المنصات المربوطة أو المُدخلة يدويًا، محوّلًا إلى الريال."
-          value={formatSar(totals.spend)}
-          delta={<Delta current={totals.spend} previous={previous.spend} goodWhen="neutral" />}
-        >
-          <TrendChart data={daily} series={[{ key: "spend", label: "الإنفاق", color: SPEND_COLOR }]} />
-        </Metric>
+        {showSpend && (
+          <Metric
+            label="الإنفاق الإعلاني"
+            tip="مجموع الإنفاق من كل المنصات المربوطة أو المُدخلة يدويًا، محوّلًا إلى الريال."
+            value={formatSar(totals.spend)}
+            delta={<Delta current={totals.spend} previous={previous.spend} goodWhen="neutral" />}
+          >
+            <TrendChart data={daily} series={[{ key: "spend", label: "الإنفاق", color: SPEND_COLOR }]} />
+          </Metric>
+        )}
         <Metric
           label="عدد التبرعات"
           tip="عدد الطلبات المدفوعة. التبرع الواحد قد يحتوي أكثر من مشروع."
@@ -87,8 +89,16 @@ export function OverviewCard({
         >
           <TrendChart data={daily} unit="count" series={[{ key: "donations", label: "عدد التبرعات", color: REVENUE_COLOR }]} />
         </Metric>
+        {!showSpend && (
+          <Metric
+            label="متوسط التبرع"
+            tip="إجمالي التبرعات ÷ عدد التبرعات."
+            value={totals.avgDonation == null ? "—" : formatSar(totals.avgDonation, true)}
+            delta={<Delta current={totals.avgDonation} previous={previous.avgDonation} />}
+          />
+        )}
       </div>
-      <div className="mt-6 grid gap-6 border-t pt-5 sm:grid-cols-2 lg:grid-cols-4">
+      {showSpend && <div className="mt-6 grid gap-6 border-t pt-5 sm:grid-cols-2 lg:grid-cols-4">
         <Metric
           label="العائد على الإنفاق"
           tip="إجمالي التبرعات ÷ الإنفاق الإعلاني. يشمل كل التبرعات حتى غير المنسوبة لإعلان، لذلك هو المؤشر الأشمل."
@@ -113,7 +123,7 @@ export function OverviewCard({
           value={formatSar(totals.platformValue)}
           delta={<Delta current={totals.platformValue} previous={previous.platformValue} goodWhen="neutral" />}
         />
-      </div>
+      </div>}
     </SectionCard>
   );
 }
@@ -143,16 +153,16 @@ export function RevenueVsSpendCard({ daily }: { daily: DailyPoint[] }) {
   );
 }
 
-export function ChannelTableCard({ rows }: { rows: ChannelRow[] }) {
+export function ChannelTableCard({ rows, showSpend = true }: { rows: ChannelRow[]; showSpend?: boolean }) {
   const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
   return (
     <SectionCard
-      title="أداء القنوات"
-      description="التبرعات منسوبة من روابط UTM ومعرّفات النقر؛ الإنفاق من المنصات"
+      title={showSpend ? "أداء القنوات" : "التبرعات لكل قناة"}
+      description={showSpend ? "التبرعات منسوبة من روابط UTM ومعرّفات النقر؛ الإنفاق من المنصات" : "من أين جاء المتبرعون: الزيارات والتبرعات والمبالغ لكل قناة"}
       contentClassName="px-0"
     >
       {rows.length === 0 ? (
-        <EmptyHint>لا توجد زيارات أو تبرعات أو إنفاق في هذه الفترة.</EmptyHint>
+        <EmptyHint>{showSpend ? "لا توجد زيارات أو تبرعات أو إنفاق في هذه الفترة." : "لا توجد زيارات أو تبرعات في هذه الفترة."}</EmptyHint>
       ) : (
         <Table>
           <TableHeader>
@@ -161,9 +171,15 @@ export function ChannelTableCard({ rows }: { rows: ChannelRow[] }) {
               <TableHead className="text-end">الزيارات</TableHead>
               <TableHead className="text-end">التبرعات</TableHead>
               <TableHead className="text-end">المبلغ</TableHead>
-              <TableHead className="text-end">الإنفاق</TableHead>
-              <TableHead className="text-end">العائد</TableHead>
-              <TableHead className="text-end">حسب المنصة</TableHead>
+              {showSpend ? (
+                <>
+                  <TableHead className="text-end">الإنفاق</TableHead>
+                  <TableHead className="text-end">العائد</TableHead>
+                  <TableHead className="text-end">حسب المنصة</TableHead>
+                </>
+              ) : (
+                <TableHead className="text-end">متوسط التبرع</TableHead>
+              )}
               <TableHead className="w-40 pe-6">الحصة من التبرعات</TableHead>
             </TableRow>
           </TableHeader>
@@ -176,11 +192,17 @@ export function ChannelTableCard({ rows }: { rows: ChannelRow[] }) {
                   <TableCell className="text-end tabular">{formatInt(r.visits)}</TableCell>
                   <TableCell className="text-end tabular">{formatInt(r.donations)}</TableCell>
                   <TableCell className="text-end tabular">{formatSar(r.revenue)}</TableCell>
-                  <TableCell className="text-end tabular">{r.spend ? formatSar(r.spend) : "—"}</TableCell>
-                  <TableCell className="text-end tabular">{r.spend ? formatRatio(r.revenue / r.spend) : "—"}</TableCell>
-                  <TableCell className="text-end tabular text-muted-foreground">
-                    {r.platformValue ? formatSar(r.platformValue) : "—"}
-                  </TableCell>
+                  {showSpend ? (
+                    <>
+                      <TableCell className="text-end tabular">{r.spend ? formatSar(r.spend) : "—"}</TableCell>
+                      <TableCell className="text-end tabular">{r.spend ? formatRatio(r.revenue / r.spend) : "—"}</TableCell>
+                      <TableCell className="text-end tabular text-muted-foreground">
+                        {r.platformValue ? formatSar(r.platformValue) : "—"}
+                      </TableCell>
+                    </>
+                  ) : (
+                    <TableCell className="text-end tabular">{r.donations ? formatSar(r.revenue / r.donations) : "—"}</TableCell>
+                  )}
                   <TableCell className="pe-6">
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">

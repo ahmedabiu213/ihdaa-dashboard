@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { rangeLabel } from "@/components/overview/overview-sections";
 import { isDatabaseConfigured } from "@/db";
+import { canSeeSpend } from "@/lib/roles";
+import { getCurrentUser } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/dates";
 import { formatInt, formatSar } from "@/lib/format";
 import { parseFilters } from "@/lib/queries/filters";
@@ -33,7 +35,8 @@ async function Content({ searchParams }: { searchParams: PageProps<"/donations">
   if (!isDatabaseConfigured()) return <SetupNotice />;
   const f = donationFilters(sp, parseFilters(sp));
   const page = Math.max(1, Number(Array.isArray(sp.page) ? sp.page[0] : sp.page) || 1);
-  const { rows, total, revenue } = await listDonations(f, page, PAGE_SIZE);
+  const [user, { rows, total, revenue }] = await Promise.all([getCurrentUser(), listDonations(f, page, PAGE_SIZE)]);
+  const staff = !!user && canSeeSpend(user.role);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageHref = (p: number) => {
     const next = new URLSearchParams(Object.entries(sp).flatMap(([k, v]) => (v == null ? [] : (Array.isArray(v) ? v : [v]).map((x) => [k, x]))));
@@ -92,9 +95,11 @@ async function Content({ searchParams }: { searchParams: PageProps<"/donations">
           </div>
         )}
       </SectionCard>
-      <SectionCard title="استيراد طلبات سلة" description="شبكة أمان: يصحّح المبالغ والحالات ويضيف أي طلب فات التتبع">
-        <ImportOrdersForm />
-      </SectionCard>
+      {staff && (
+        <SectionCard title="استيراد طلبات سلة" description="شبكة أمان: يصحّح المبالغ والحالات ويضيف أي طلب فات التتبع">
+          <ImportOrdersForm />
+        </SectionCard>
+      )}
     </>
   );
 }

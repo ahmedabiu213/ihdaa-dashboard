@@ -13,8 +13,8 @@ const plexArabic = IBM_Plex_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "لوحة إهداء التسويقية",
-  description: "متابعة التبرعات والإنفاق الإعلاني لكل قناة وحملة ومشروع",
+  title: "لوحة جمعية إهداء",
+  description: "متابعة تبرعات جمعية إهداء لكل قناة ومشروع",
   robots: { index: false, follow: false },
 };
 

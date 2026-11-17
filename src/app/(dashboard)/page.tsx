@@ -8,6 +8,9 @@ import {
   ChannelTableCard, OverviewCard, RecentDonationsCard, RevenueVsSpendCard,
 } from "@/components/overview/overview-sections";
 import { isDatabaseConfigured } from "@/db";
+import { canSeeSpend } from "@/lib/roles";
+import { getCurrentUser } from "@/lib/supabase/server";
+import { redactChannelDaily, redactChannels, redactDaily, redactTotals } from "@/lib/queries/redact";
 import { parseFilters } from "@/lib/queries/filters";
 import { getChannelBreakdown, getDailySeries, getOverviewTotals, getRecentDonations } from "@/lib/queries/overview";
 import { getChannelDaily } from "@/lib/queries/channels";
@@ -20,7 +23,8 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
   await connection();
   const filters = parseFilters(await searchParams);
   if (!isDatabaseConfigured()) return <SetupNotice />;
-  const [{ current, previous }, daily, channels, channelDaily, recent, visits, dailyVisits, productVisits] = await Promise.all([
+  const [user, { current, previous }, daily, channels, channelDaily, recent, visits, dailyVisits, productVisits] = await Promise.all([
+    getCurrentUser(),
     getOverviewTotals(filters),
     getDailySeries(filters),
     getChannelBreakdown(filters),
@@ -30,6 +34,22 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     getDailyVisits(filters),
     getProductVisits(filters, 8),
   ]);
+  if (!user || !canSeeSpend(user.role)) {
+    // Donations-only view: spend never leaves the server.
+    return (
+      <>
+        <OverviewCard range={filters.range} totals={redactTotals(current)} previous={redactTotals(previous)} daily={redactDaily(daily)} showSpend={false} />
+        <VisitsCard
+          range={filters.range} totals={visits.current} previous={visits.previous}
+          donations={current.donations} previousDonations={previous.donations}
+          daily={dailyVisits} products={productVisits}
+        />
+        <ChannelTableCard rows={redactChannels(channels)} showSpend={false} />
+        <ChannelTrendsCard range={filters.range} daily={redactChannelDaily(channelDaily)} showSpend={false} />
+        <RecentDonationsCard rows={recent} />
+      </>
+    );
+  }
   return (
     <>
       <OverviewCard range={filters.range} totals={current} previous={previous} daily={daily} />
@@ -51,7 +71,7 @@ export default function OverviewPage(props: PageProps<"/">) {
     <>
       <PageHeader
         title="نظرة عامة"
-        description="التبرعات والإنفاق والعائد لكل القنوات"
+        description="ملخص التبرعات والقنوات للفترة المختارة"
         actions={<Suspense fallback={<FilterSkeleton />}><FilterBar /></Suspense>}
       />
       <PageBody>

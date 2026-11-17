@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseConfig } from "@/lib/supabase/config";
+import { canOpen, roleOf } from "@/lib/roles";
 
 /**
  * Machine endpoints authenticate themselves (signatures, shared secrets) and
@@ -38,6 +39,14 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = pathname === "/" ? "" : `?next=${encodeURIComponent(pathname + request.nextUrl.search)}`;
+    return NextResponse.redirect(url);
+  }
+  // Viewers only see donations: no spend, campaigns, tools or settings.
+  if (!canOpen(roleOf(data.user.app_metadata?.role), pathname)) {
+    if (pathname.startsWith("/api/")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.search = "";
     return NextResponse.redirect(url);
   }
   return response;

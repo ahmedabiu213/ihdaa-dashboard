@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/db";
-import { getCurrentUser } from "@/lib/supabase/server";
+import { getStaffUser } from "@/lib/supabase/server";
 import { parseAmount, parseDay } from "@/lib/import/csv";
 import { normalizePlatform, parseSpendCsv, upsertManualSpend } from "@/lib/import/spend";
 
 export type FormState = { ok?: string; error?: string; details?: string[] };
 
 export async function addSpend(_prev: FormState, form: FormData): Promise<FormState> {
-  const user = await getCurrentUser();
+  const user = await getStaffUser();
   if (!user) return { error: "سجّل الدخول أولًا." };
   const date = parseDay(String(form.get("date") ?? ""));
   const platform = normalizePlatform(String(form.get("platform") ?? ""));
@@ -29,7 +29,7 @@ export async function addSpend(_prev: FormState, form: FormData): Promise<FormSt
 }
 
 export async function importSpend(_prev: FormState, form: FormData): Promise<FormState> {
-  if (!(await getCurrentUser())) return { error: "سجّل الدخول أولًا." };
+  if (!(await getStaffUser())) return { error: "سجّل الدخول أولًا." };
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "اختر ملف CSV." };
   if (file.size > 5_000_000) return { error: "الملف أكبر من 5 ميجابايت." };
@@ -45,7 +45,7 @@ export async function importSpend(_prev: FormState, form: FormData): Promise<For
 }
 
 export async function deleteSpend(form: FormData): Promise<void> {
-  if (!(await getCurrentUser())) return;
+  if (!(await getStaffUser())) return;
   const id = Number(form.get("id"));
   if (!Number.isInteger(id)) return;
   // Only hand-entered rows can be deleted here; API rows are owned by the sync.

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/supabase/server";
+import { getStaffUser } from "@/lib/supabase/server";
 import { syncSnapchat } from "@/lib/snapchat/sync";
 import { syncTiktok } from "@/lib/tiktok/sync";
 import { saveIntegration } from "@/lib/integrations/store";
@@ -12,7 +12,7 @@ type Platform = keyof typeof SYNCS;
 const isPlatform = (v: unknown): v is Platform => typeof v === "string" && v in SYNCS;
 
 export async function syncNow(_prev: ActionState, form: FormData): Promise<ActionState> {
-  if (!(await getCurrentUser())) return { error: "سجّل الدخول أولًا." };
+  if (!(await getStaffUser())) return { error: "سجّل الدخول أولًا." };
   const platform = form.get("platform");
   if (!isPlatform(platform)) return { error: "منصة غير معروفة" };
   const days = Math.min(90, Math.max(1, Number(form.get("days")) || 7));
@@ -26,7 +26,7 @@ export async function syncNow(_prev: ActionState, form: FormData): Promise<Actio
 }
 
 export async function disconnect(form: FormData): Promise<void> {
-  if (!(await getCurrentUser())) return;
+  if (!(await getStaffUser())) return;
   const platform = form.get("platform");
   if (!isPlatform(platform)) return;
   await saveIntegration(platform, { status: "disconnected", accessTokenEnc: null, refreshTokenEnc: null, tokenExpiresAt: null });

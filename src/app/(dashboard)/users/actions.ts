@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser, type Role } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/server";
+import { roleOf as parseRole } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export type UserFormState = { ok?: string; error?: string };
@@ -18,7 +19,7 @@ async function requireAdmin() {
   return { me, admin } as const;
 }
 
-const roleOf = (v: FormDataEntryValue | null): Role => (v === "admin" ? "admin" : "member");
+const roleOf = (v: FormDataEntryValue | null) => parseRole(v);
 
 /** Number of admins other than `exceptId`, so the last admin can't be removed or demoted. */
 async function otherAdmins(admin: NonNullable<ReturnType<typeof supabaseAdmin>>, exceptId: string) {

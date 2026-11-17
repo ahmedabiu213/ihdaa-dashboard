@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { KeyRound, LogOut } from "lucide-react";
-import { getCurrentUser } from "@/lib/supabase/server";
+import type { CurrentUser } from "@/lib/supabase/server";
 import { logout } from "@/app/login/actions";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 
-export async function UserMenu() {
-  const user = await getCurrentUser();
+export function UserMenu({ user }: { user: CurrentUser | null }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>

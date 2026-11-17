@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/dates";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { roleOf } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { CreateUserForm, DeleteDialog, PasswordDialog, RoleControl } from "./user-forms";
 
@@ -39,7 +40,7 @@ async function Content() {
       <SectionCard title="إضافة مستخدم" description="ينشئ حسابًا جاهزًا للدخول فورًا بالبريد وكلمة المرور">
         <CreateUserForm />
       </SectionCard>
-      <SectionCard title="المستخدمون" description={`${users.length} حساب · ${adminCount} مسؤول`} contentClassName="px-0">
+      <SectionCard title="المستخدمون" description={`${users.length} حساب · ${adminCount} مسؤول · ${users.filter((u) => roleOf(u.app_metadata?.role) === "viewer").length} عارض تبرعات`} contentClassName="px-0">
         <Table>
           <TableHeader>
             <TableRow>
@@ -52,7 +53,7 @@ async function Content() {
           </TableHeader>
           <TableBody>
             {users.map((u) => {
-              const role = u.app_metadata?.role === "admin" ? "admin" : "member";
+              const role = roleOf(u.app_metadata?.role);
               const isMe = u.id === me.id;
               const lastAdmin = role === "admin" && adminCount <= 1;
               return (

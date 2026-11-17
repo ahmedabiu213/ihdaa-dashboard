@@ -8,9 +8,14 @@ import {
 } from "@/components/ui/sidebar";
 import { BrandMark } from "@/components/brand-mark";
 import { NAV } from "@/components/nav";
+import { canOpen, type Role } from "@/lib/roles";
 
-export function AppSidebar({ footer }: { footer: React.ReactNode }) {
+/** `role` null while the user is loading: no links yet, so a viewer never sees staff pages flash by. */
+export function AppSidebar({ footer, role }: { footer: React.ReactNode; role: Role | null }) {
   const pathname = usePathname();
+  const groups = role == null ? [] : NAV
+    .map((g) => ({ ...g, items: g.items.filter((i) => canOpen(role, i.href)) }))
+    .filter((g) => g.items.length > 0);
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
@@ -23,7 +28,7 @@ export function AppSidebar({ footer }: { footer: React.ReactNode }) {
                 <BrandMark />
                 <div className="grid leading-tight">
                   <span className="font-semibold text-brand-navy">جمعية إهداء</span>
-                  <span className="text-xs text-brand-steel">لوحة التسويق</span>
+                  <span className="text-xs text-brand-steel">{role === "viewer" ? "لوحة التبرعات" : "لوحة التسويق"}</span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -31,7 +36,7 @@ export function AppSidebar({ footer }: { footer: React.ReactNode }) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {NAV.map((group) => (
+        {groups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarMenu>

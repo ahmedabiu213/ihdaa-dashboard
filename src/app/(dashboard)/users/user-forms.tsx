@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import { ROLES, ROLE_HINT, ROLE_LABEL, roleOf } from "@/lib/roles";
 import { createUser, deleteUser, setPassword, setRole, type UserFormState } from "./actions";
 
 function Result({ state }: { state: UserFormState }) {
@@ -23,8 +24,7 @@ function RoleSelect({ name = "role", defaultValue = "member", onChange }: { name
     <Select name={name} defaultValue={defaultValue} onValueChange={onChange}>
       <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
       <SelectContent>
-        <SelectItem value="member">عضو: يرى اللوحة ويستخدمها</SelectItem>
-        <SelectItem value="admin">مسؤول: يدير المستخدمين أيضًا</SelectItem>
+        {ROLES.map((r) => <SelectItem key={r} value={r}>{ROLE_HINT[r]}</SelectItem>)}
       </SelectContent>
     </Select>
   );
@@ -53,9 +53,9 @@ export function CreateUserForm() {
 
 export function RoleControl({ id, role, disabled }: { id: string; role: string; disabled?: boolean }) {
   const [pending, start] = useTransition();
-  if (disabled) return <span className="text-sm">{role === "admin" ? "مسؤول" : "عضو"}</span>;
+  if (disabled) return <span className="text-sm">{ROLE_LABEL[roleOf(role)]}</span>;
   return (
-    <div className="min-w-44" data-pending={pending || undefined}>
+    <div className="min-w-64" data-pending={pending || undefined}>
       <RoleSelect
         name="role"
         defaultValue={role}

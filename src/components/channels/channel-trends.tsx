@@ -13,14 +13,15 @@ const SERIES = [
 ];
 
 /** One small donations-vs-spend chart per channel (same SAR scale within each card). */
-export function ChannelTrendsCard({ range, daily }: { range: DateRange; daily: ChannelDaily[] }) {
+export function ChannelTrendsCard({ range, daily, showSpend = true }: { range: DateRange; daily: ChannelDaily[]; showSpend?: boolean }) {
+  const series = showSpend ? SERIES : SERIES.filter((s) => s.key !== "spend");
   return (
     <SectionCard
       title="الاتجاه اليومي لكل قناة"
-      description={`${rangeLabel(range)} · التبرعات المنسوبة مقابل الإنفاق، بالريال`}
+      description={`${rangeLabel(range)} · ${showSpend ? "التبرعات المنسوبة مقابل الإنفاق" : "التبرعات المنسوبة لكل قناة"}، بالريال`}
       action={
         <div className="flex items-center gap-4 text-sm">
-          {SERIES.map((s) => (
+          {series.map((s) => (
             <span key={s.key} className="inline-flex items-center gap-1.5 text-muted-foreground">
               <span className="size-2.5 rounded-full border-2" style={{ borderColor: s.color }} />{s.label}
             </span>
@@ -37,12 +38,16 @@ export function ChannelTrendsCard({ range, daily }: { range: DateRange; daily: C
               <div key={c.channel} className="grid gap-2 rounded-lg border p-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium"><ChannelName channel={c.channel} /></span>
-                  <span className="text-sm font-semibold tabular">{spend > 0 ? formatRatio(rev / spend) : "—"}</span>
+                  <span className="text-sm font-semibold tabular">
+                    {showSpend ? (spend > 0 ? formatRatio(rev / spend) : "—") : formatSar(rev)}
+                  </span>
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground tabular">
-                  <span>تبرعات {formatSar(rev)}</span><span>إنفاق {formatSar(spend)}</span>
-                </div>
-                <TrendChart data={c.points} series={SERIES} height={110} />
+                {showSpend && (
+                  <div className="flex justify-between text-xs text-muted-foreground tabular">
+                    <span>تبرعات {formatSar(rev)}</span><span>إنفاق {formatSar(spend)}</span>
+                  </div>
+                )}
+                <TrendChart data={c.points} series={series} height={110} />
               </div>
             );
           })}

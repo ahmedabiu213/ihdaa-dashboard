@@ -140,23 +140,55 @@ async function PlatformCard({ def }: { def: PlatformDef }) {
   );
 }
 
+const REJECT_HELP: Record<string, string> = {
+  unauthorized: "المفتاح غير مطابق لـ ORDERS_INGEST_SECRET في Vercel",
+  "invalid body": "جسم الطلب ليس بيانات طلب سلة بصيغة JSON",
+};
+
 async function OrdersCard() {
-  const [last] = await getDb().select({ at: schema.webhookEvents.receivedAt, error: schema.webhookEvents.error })
-    .from(schema.webhookEvents).orderBy(desc(schema.webhookEvents.receivedAt)).limit(1);
+  const events = await getDb().select({
+    at: schema.webhookEvents.receivedAt, event: schema.webhookEvents.event, processed: schema.webhookEvents.processed,
+    error: schema.webhookEvents.error, payload: schema.webhookEvents.payload,
+  }).from(schema.webhookEvents).orderBy(desc(schema.webhookEvents.receivedAt)).limit(6);
+  const last = events[0];
+  const lastOk = events.find((e) => e.processed);
   const configured = !!process.env.ORDERS_INGEST_SECRET;
+  const status = !configured ? "off" : lastOk && last === lastOk ? "connected" : last ? "error" : "off";
   return (
     <SectionCard
       title="طلبات سلة عبر Make.com"
       description="بيانات سلة الموثّقة: المبلغ والحالة والمشاريع"
-      action={<Status status={!configured ? "off" : last?.error ? "error" : last ? "connected" : "off"} />}
+      action={<Status status={status} />}
     >
       <div className="grid gap-3 text-sm">
-        <Row label="آخر طلب وصل">{last ? formatDateTime(last.at) : "لم يصل شيء بعد"}</Row>
+        <Row label="آخر طلب ناجح">{lastOk ? formatDateTime(lastOk.at) : "لم يصل طلب ناجح بعد"}</Row>
+        {events.length > 0 && (
+          <div className="grid gap-1.5">
+            <p className="text-xs font-medium text-muted-foreground">آخر المحاولات</p>
+            {events.map((e, i) => {
+              const p = (e.payload ?? {}) as Record<string, unknown>;
+              const detail = e.error === "unauthorized"
+                ? `الترويسات: ${p.auth_headers ?? "?"} · طول المفتاح المرسل ${JSON.stringify(p.provided_lengths ?? [])} والمتوقع ${p.expected_length ?? "?"}`
+                : e.error === "invalid body" ? `نوع المحتوى: ${p.content_type || "?"} · بداية الجسم: ${String(p.start ?? "").slice(0, 80)}` : null;
+              return (
+                <div key={i} className="rounded-md border px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={e.processed ? "text-success" : "text-destructive"}>
+                      {e.processed ? "نجح" : `فشل: ${REJECT_HELP[e.error ?? ""] ?? e.error ?? "غير معروف"}`}
+                    </span>
+                    <span className="text-muted-foreground tabular">{formatDateTime(e.at)}</span>
+                  </div>
+                  {detail && <p dir="auto" className="mt-1 break-words text-muted-foreground">{detail}</p>}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <ol className="grid list-decimal gap-1.5 ps-5 text-muted-foreground">
-          <li>في Make: سيناريو جديد، المشغّل <b>Salla → Watch Order Created</b>.</li>
-          <li>سيناريو ثانٍ بالمشغّل <b>Watch Order Payment Updated</b> لتحديث حالة الدفع.</li>
-          <li>أضف <b>HTTP → Make a request</b> بطريقة POST إلى الرابط التالي، وجسم الطلب JSON يحتوي الطلب كاملًا.</li>
-          <li>أضف الترويسة <code dir="ltr">Authorization: Bearer ORDERS_INGEST_SECRET</code> (القيمة من إعدادات Vercel).</li>
+          <li>في Make: المشغّل <b>Salla → Watch Order Created</b>، ثم <b>HTTP → Make a request</b> بطريقة POST إلى الرابط أدناه.</li>
+          <li>المفتاح (ORDERS_INGEST_SECRET) في ترويسة <code dir="ltr">x-api-key</code> أو <code dir="ltr">Authorization</code>، أو في الرابط <code dir="ltr">?key=</code>.</li>
+          <li>جسم الطلب: بيانات الطلب من سلة بصيغة JSON (Data كاملة أو الطلب نفسه).</li>
+          <li>فعّل السيناريو (ON). زر Run once للتجربة فقط.</li>
         </ol>
         <CodeBlock code={`${appUrl()}/api/ingest/orders`} />
         {!configured && <p className="text-destructive">أضف المتغير <code dir="ltr">ORDERS_INGEST_SECRET</code> في Vercel أولًا.</p>}

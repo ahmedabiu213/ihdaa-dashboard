@@ -7,12 +7,33 @@ export function safeEqual(a: string, b: string) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-/** Accepts `Authorization: Bearer <secret>` or `x-api-key: <secret>`. */
+const KEY_HEADERS = ["x-api-key", "api-key", "apikey", "x-ingest-key"];
+
+/** Every place a client might put the key: Authorization (with or without "Bearer"), key headers, ?key=. */
+export function providedSecrets(req: Request): string[] {
+  const out: string[] = [];
+  const auth = req.headers.get("authorization");
+  if (auth) out.push(auth.replace(/^\s*bearer\s+/i, "").trim());
+  for (const h of KEY_HEADERS) {
+    const v = req.headers.get(h);
+    if (v) out.push(v.replace(/^\s*bearer\s+/i, "").trim());
+  }
+  try {
+    const q = new URL(req.url).searchParams.get("key");
+    if (q) out.push(q.trim());
+  } catch { /* ignore */ }
+  return out.filter(Boolean);
+}
+
+/** True when any provided key matches. Comparison is constant-time per candidate. */
 export function hasSecret(req: Request, secret: string | undefined) {
   if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  const given = auth?.startsWith("Bearer ") ? auth.slice(7) : req.headers.get("x-api-key");
-  return !!given && safeEqual(given.trim(), secret);
+  return providedSecrets(req).some((given) => safeEqual(given, secret.trim()));
+}
+
+/** Names of the auth headers present (never values), for diagnosing rejected requests. */
+export function authHeaderSummary(req: Request) {
+  return ["authorization", ...KEY_HEADERS].filter((h) => req.headers.get(h)).join(", ") || "none";
 }
 
 export function hmacSha256Hex(secret: string, body: string) {

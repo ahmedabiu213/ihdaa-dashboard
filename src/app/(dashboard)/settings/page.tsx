@@ -9,7 +9,8 @@ import { SetupNotice } from "@/components/setup-notice";
 import { CodeBlock } from "@/components/copy-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getDb, isDatabaseConfigured, schema } from "@/db";
+import { DbTimeoutError, getDb, isDatabaseConfigured, schema, withDbTimeout } from "@/db";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/dates";
 import { formatInt } from "@/lib/format";
 import { ChannelName } from "@/components/channel-dot";
@@ -60,6 +61,29 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+/** Load a card's data with a time limit; a failure stays inside that card. */
+async function load<T>(work: () => Promise<T>): Promise<{ data: T; error?: never } | { data?: never; error: string }> {
+  try {
+    return { data: await withDbTimeout(work()) };
+  } catch (e) {
+    console.error("[settings]", e);
+    return { error: e instanceof DbTimeoutError ? "قاعدة البيانات لم ترد في الوقت المحدد. حدّث الصفحة بعد لحظات." : "تعذّر تحميل هذا القسم. حدّث الصفحة." };
+  }
+}
+
+function FailedCard({ title, description, error }: { title: string; description?: string; error: string }) {
+  return (
+    <SectionCard title={title} description={description} action={<Status status="error" />}>
+      <p className="text-sm text-destructive">{error}</p>
+    </SectionCard>
+  );
+}
+
+/** Each card streams on its own, so one slow query can't hold the whole page. */
+function Slot({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<Skeleton className="h-64 rounded-xl" aria-busy="true" />}>{children}</Suspense>;
+}
+
 type PlatformDef = {
   key: "snapchat" | "tiktok";
   title: string;
@@ -88,11 +112,13 @@ function platformDefs(): PlatformDef[] {
 }
 
 async function PlatformCard({ def }: { def: PlatformDef }) {
-  const [row, runs, account] = await Promise.all([
+  const r = await load(() => Promise.all([
     getIntegration(def.key),
     recentRuns(def.key, 3),
     getDb().select().from(schema.adAccounts).where(eq(schema.adAccounts.platform, def.key)).limit(1),
-  ]);
+  ]));
+  if (r.error !== undefined) return <FailedCard title={def.title} description={def.description} error={r.error} />;
+  const [row, runs, account] = r.data;
   const connected = !!row?.[def.connectedBy];
   const status = !connected ? "off" : row?.status === "error" ? "error" : "connected";
   const acc = account[0];
@@ -146,10 +172,12 @@ const REJECT_HELP: Record<string, string> = {
 };
 
 async function OrdersCard() {
-  const events = await getDb().select({
+  const r = await load(() => getDb().select({
     at: schema.webhookEvents.receivedAt, event: schema.webhookEvents.event, processed: schema.webhookEvents.processed,
     error: schema.webhookEvents.error, payload: schema.webhookEvents.payload,
-  }).from(schema.webhookEvents).orderBy(desc(schema.webhookEvents.receivedAt)).limit(6);
+  }).from(schema.webhookEvents).orderBy(desc(schema.webhookEvents.receivedAt)).limit(6));
+  if (r.error !== undefined) return <FailedCard title="طلبات سلة (Webhook من سلة)" error={r.error} />;
+  const events = r.data;
   const last = events[0];
   const lastOk = events.find((e) => e.processed);
   const configured = !!process.env.ORDERS_INGEST_SECRET;
@@ -199,16 +227,21 @@ async function OrdersCard() {
 }
 
 async function TrackingCard() {
-  const db = getDb();
-  const [stats] = await db.execute<{ last: string | null; sessions: string; tagged: string; by_app: string; untagged: string }>(sql`
-    select max(visited_at) last, count(distinct session_id) sessions,
-      count(distinct session_id) filter (where utm_source is not null or click_id is not null) tagged,
-      count(distinct session_id) filter (where utm_source is null and click_id is null and ua_app is not null) by_app,
-      count(distinct session_id) filter (where channel = 'direct') untagged
-    from visits where visited_at > now() - interval '24 hours'`);
-  const byChannel = await db.execute<{ channel: string; sessions: string }>(sql`
-    select channel, count(distinct session_id) sessions from visits
-    where visited_at > now() - interval '24 hours' group by 1 order by 2 desc`);
+  const r = await load(async () => {
+    const db = getDb();
+    const [stats] = await db.execute<{ last: string | null; sessions: string; tagged: string; by_app: string; untagged: string }>(sql`
+      select max(visited_at) last, count(distinct session_id) sessions,
+        count(distinct session_id) filter (where utm_source is not null or click_id is not null) tagged,
+        count(distinct session_id) filter (where utm_source is null and click_id is null and ua_app is not null) by_app,
+        count(distinct session_id) filter (where channel = 'direct') untagged
+      from visits where visited_at > now() - interval '24 hours'`);
+    const byChannel = await db.execute<{ channel: string; sessions: string }>(sql`
+      select channel, count(distinct session_id) sessions from visits
+      where visited_at > now() - interval '24 hours' group by 1 order by 2 desc`);
+    return { stats, byChannel };
+  });
+  if (r.error !== undefined) return <FailedCard title="سكربت التتبع في المتجر" error={r.error} />;
+  const { stats, byChannel } = r.data;
   const n = (v: string | undefined) => Number(v ?? 0);
   return (
     <SectionCard
@@ -244,7 +277,9 @@ async function TrackingCard() {
 
 async function GoogleCard() {
   const secret = process.env.GOOGLE_ADS_INGEST_SECRET;
-  const row = await getIntegration("google");
+  const r = await load(() => getIntegration("google"));
+  if (r.error !== undefined) return <FailedCard title="إعلانات قوقل" error={r.error} />;
+  const row = r.data;
   return (
     <SectionCard
       title="إعلانات قوقل"
@@ -335,10 +370,10 @@ async function Content({ searchParams }: { searchParams: PageProps<"/settings">[
       )}
       <div className="grid gap-4 lg:grid-cols-2">
         <EnvCard />
-        {platformDefs().map((d) => <PlatformCard key={d.key} def={d} />)}
-        <OrdersCard />
-        <TrackingCard />
-        <GoogleCard />
+        {platformDefs().map((d) => <Slot key={d.key}><PlatformCard def={d} /></Slot>)}
+        <Slot><OrdersCard /></Slot>
+        <Slot><TrackingCard /></Slot>
+        <Slot><GoogleCard /></Slot>
         <OtherPlatformsCard />
       </div>
     </>

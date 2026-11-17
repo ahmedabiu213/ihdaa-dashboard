@@ -67,6 +67,14 @@ export async function POST(req: Request) {
   }
 
   const event = !Array.isArray(body) && "event" in body ? String((body as { event: unknown }).event) : null;
+  // Non-order events (e.g. payment events from Salla's store webhooks) may carry a payment id
+  // where an order id is expected: keep them for inspection instead of creating a wrong order.
+  if (event && !event.startsWith("order.")) {
+    try {
+      await getDb().insert(schema.webhookEvents).values({ source: "make", event, payload: body as object, processed: false, error: "not an order event (saved for review)" });
+    } catch { /* ignore */ }
+    return json({ ok: true, ignored: event });
+  }
   try {
     const results = await ingestSallaPayload(body, "make", event);
     return json({ ok: true, results });

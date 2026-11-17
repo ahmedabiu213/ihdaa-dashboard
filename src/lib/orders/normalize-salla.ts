@@ -1,5 +1,5 @@
 import { toNumber } from "@/lib/format";
-import type { NormalizedItem, NormalizedOrder, OrderSource } from "./types";
+import type { NormalizedItem, NormalizedOrder, OrderSource, SallaTouch } from "./types";
 
 /**
  * Turn a Salla order object into our shape. The same order JSON arrives from
@@ -44,6 +44,26 @@ function parseSallaDate(v: unknown): Date | null {
   const base = raw.replace(" ", "T").replace(/(\.\d{3})\d+$/, "$1");
   // Only Riyadh is expected; it has no DST, so a fixed offset is exact.
   return new Date(tz === "Asia/Riyadh" ? `${base}+03:00` : `${base}Z`);
+}
+
+/**
+ * Salla records the donor's UTM tags itself (order.source_details, order.campaign).
+ * Only the full order JSON (Make's Salla trigger, the API) has them; invoices don't.
+ */
+export function sallaTouch(order: Json): SallaTouch | null {
+  const sd = obj(order.source_details);
+  const camp = obj(order.campaign);
+  const value = str(sd.value);
+  const touch: SallaTouch = {
+    utmSource: str(sd.utm_source) ?? str(camp.source),
+    utmMedium: str(sd.utm_medium) ?? str(camp.medium),
+    utmCampaign: str(sd.utm_campaign) ?? str(camp.campaign),
+    utmContent: str(sd.utm_content),
+    utmTerm: str(sd.utm_term),
+    referrer: value && /^https?:\/\//i.test(value) ? value : null,
+    userAgent: str(sd["user-agent"]) ?? str(sd.user_agent),
+  };
+  return Object.values(touch).some((v) => v != null) ? touch : null;
 }
 
 export function normalizeSallaOrder(body: unknown, source: OrderSource): NormalizedOrder {
@@ -107,5 +127,6 @@ export function normalizeSallaOrder(body: unknown, source: OrderSource): Normali
     source,
     raw: body,
     hasAmount: (total.amount || 0) > 0 || items.some((i) => i.totalSar > 0),
+    touch: sallaTouch(order),
   };
 }

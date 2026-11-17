@@ -11,6 +11,17 @@ export type NormalizedItem = {
   totalSar: number;
 };
 
+/** Where Salla itself says the donor came from (order.source_details / order.campaign). */
+export type SallaTouch = {
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmContent: string | null;
+  utmTerm: string | null;
+  referrer: string | null;
+  userAgent: string | null;
+};
+
 export type NormalizedOrder = {
   sallaId: number | null;
   referenceId: string | null;
@@ -24,6 +35,8 @@ export type NormalizedOrder = {
   raw: unknown;
   /** False for partial events (status change, delete) that carry no amount: never overwrite money with 0. */
   hasAmount?: boolean;
+  /** Salla's own attribution, used when the store script sent none. */
+  touch?: SallaTouch | null;
 };
 
 /**

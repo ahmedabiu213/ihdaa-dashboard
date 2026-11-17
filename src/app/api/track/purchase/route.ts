@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { appFromUserAgent, resolveChannel } from "@/lib/channels";
 import { json } from "@/lib/http";
-import { upsertOrder } from "@/lib/orders/upsert";
+import { SALLA_REF_PREFIX, upsertOrder } from "@/lib/orders/upsert";
 import { toSar } from "@/lib/orders/normalize-salla";
 import { corsHeaders, ownHost, readTracked } from "@/lib/tracking/request";
 import { purchaseSchema } from "@/lib/tracking/schemas";
@@ -64,10 +64,20 @@ export async function POST(req: Request) {
 }
 
 async function upsertLinkOnly(orderRef: string, sallaId: number | null, referenceId: string | null) {
-  await getDb().execute(sql`
-    update attributions a set order_id = o.id
-    from orders o
-    where a.order_ref = ${orderRef} and a.order_id is null
-      and (o.salla_id = ${sallaId} or o.reference_id = ${referenceId} or o.reference_id = ${orderRef})
-      and not exists (select 1 from attributions x where x.order_id = o.id)`);
+  // The browser's report is more precise than the fallback built from Salla's UTM data,
+  // so it takes that one's place; a browser report already linked is never replaced.
+  await getDb().transaction(async (tx) => {
+    const rows = await tx.execute<{ id: number }>(sql`
+      select o.id from orders o
+      where (o.salla_id = ${sallaId} or o.reference_id = ${referenceId} or o.reference_id = ${orderRef})
+        and exists (select 1 from attributions a where a.order_ref = ${orderRef} and a.order_id is null)
+      limit 1 for update`);
+    const orderId = rows[0]?.id;
+    if (orderId == null) return;
+    await tx.execute(sql`delete from attributions where order_id = ${orderId} and order_ref like ${SALLA_REF_PREFIX + "%"}`);
+    await tx.execute(sql`
+      update attributions a set order_id = ${orderId}
+      where a.order_ref = ${orderRef} and a.order_id is null
+        and not exists (select 1 from attributions x where x.order_id = ${orderId})`);
+  });
 }

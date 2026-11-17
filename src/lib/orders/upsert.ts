@@ -2,9 +2,14 @@ import "server-only";
 import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { riyadhDay } from "@/lib/dates";
+import { appFromUserAgent, resolveChannel } from "@/lib/channels";
+import { ownHost } from "@/lib/tracking/request";
 import { VERIFIED_SOURCES, countsAsRevenue, type NormalizedOrder } from "./types";
 
 const { orders, orderItems, products, attributions } = schema;
+
+/** Attributions built from Salla's own UTM data, not from the store script. */
+export const SALLA_REF_PREFIX = "salla:";
 
 export type UpsertResult = { orderId: number; action: "created" | "updated" | "skipped" };
 
@@ -127,16 +132,37 @@ export async function upsertOrder(n: NormalizedOrder): Promise<UpsertResult> {
     }
 
     // Link the purchase report the browser sent (by id or reference). Exactly one
-    // attribution per order, otherwise revenue would be counted twice.
+    // attribution per order, otherwise revenue would be counted twice. The store
+    // script's report is the most precise (click ids, landing page), so it replaces
+    // the fallback built from Salla's own UTM data (order_ref "salla:…").
     const refs = [n.sallaId, n.referenceId, keep?.sallaId, keep?.referenceId]
       .filter((r) => r != null && r !== "").map(String);
     const [linked] = await tx.select({ ref: attributions.orderRef }).from(attributions)
       .where(eq(attributions.orderId, orderId)).limit(1);
-    if (!linked && refs.length > 0) {
-      const [candidate] = await tx.select({ ref: attributions.orderRef }).from(attributions)
+    const linkedIsFallback = linked?.ref.startsWith(SALLA_REF_PREFIX) ?? false;
+    let candidate: { ref: string } | undefined;
+    if ((!linked || linkedIsFallback) && refs.length > 0) {
+      [candidate] = await tx.select({ ref: attributions.orderRef }).from(attributions)
         .where(and(inArray(attributions.orderRef, refs), isNull(attributions.orderId)))
         .orderBy(attributions.createdAt).limit(1);
-      if (candidate) await tx.update(attributions).set({ orderId }).where(eq(attributions.orderRef, candidate.ref));
+      if (candidate) {
+        if (linked) await tx.delete(attributions).where(eq(attributions.orderRef, linked.ref));
+        await tx.update(attributions).set({ orderId }).where(eq(attributions.orderRef, candidate.ref));
+      }
+    }
+    if (!candidate && (!linked || linkedIsFallback) && n.touch) {
+      const t = n.touch;
+      const uaApp = appFromUserAgent(t.userAgent);
+      const fallback = {
+        orderId,
+        channel: resolveChannel({ utmSource: t.utmSource, referrer: t.referrer, ownHost: ownHost(), uaApp }),
+        utmSource: t.utmSource, utmMedium: t.utmMedium, utmCampaign: t.utmCampaign,
+        utmContent: t.utmContent, utmTerm: t.utmTerm, uaApp,
+      };
+      const ref = `${SALLA_REF_PREFIX}${values.sallaId ?? values.referenceId}`;
+      if (linked && linked.ref !== ref) await tx.delete(attributions).where(eq(attributions.orderRef, linked.ref));
+      await tx.insert(attributions).values({ orderRef: ref, ...fallback })
+        .onConflictDoUpdate({ target: attributions.orderRef, set: fallback });
     }
 
     return { orderId, action };

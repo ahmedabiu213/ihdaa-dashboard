@@ -19,6 +19,12 @@ for (const body of [real, { event: "order.created", data: real }]) {
   check("time (Riyadh → UTC)", n.orderedAt.toISOString() === "2026-09-27T02:52:28.000Z", n.orderedAt.toISOString());
   check("items split", n.items.length === 2 && n.items[0].totalSar + n.items[1].totalSar === 25, n.items.map((i) => i.totalSar));
 }
+{
+  const withTouch = { ...real, source_details: { type: "direct", value: null, "user-agent": "Mozilla/5.0 musical_ly_47.7.3", utm_source: "tiktok", utm_medium: "paid", utm_campaign: "حملة", utm_term: "", utm_content: "" } };
+  const t = normalizeSallaOrder({ event: "order.created", data: withTouch }, "make").touch;
+  check("salla touch", t?.utmSource === "tiktok" && t.utmMedium === "paid" && t.utmTerm === null && /musical_ly/.test(t.userAgent ?? ""), t);
+  check("no touch without data", normalizeSallaOrder(real, "make").touch === null);
+}
 check("deleted not counted", !countsAsRevenue("deleted"));
 check("quote not counted", !countsAsRevenue("request_quote"));
 process.exit(failed ? 1 : 0);
